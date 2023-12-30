@@ -1,0 +1,20 @@
+training:
+  # Basic training parameters
+  batch_size: 64
+  num_epochs: 2
+  learning_rate: 0.001
+  random_seed: 2665
+
+  # GPU configuration
+  use_cuda: true
+  gpu_id: 1
+
+  # Path for saving model and performance data
+  save_path: "/tmp2/npe/model/celeba_test"
+
+dataset:
+  selected_attrs:
+    - Smiling
+    - Young
+    
+  protected_attr: 'Male'
