@@ -1,0 +1,9 @@
+torch==2.1.2
+torchvision==0.16.2
+
+pyyaml=6.0.1
+numpy==1.26.2
+matplotlib==3.8.2
+pandas==2.1.4
+dlib==19.24.99
+kornia==0.7.0
