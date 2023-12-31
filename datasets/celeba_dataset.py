@@ -1,8 +1,7 @@
 from pathlib import Path
-import pandas as pd
 from PIL import Image
+import pandas as pd
 
-from torchvision import transforms
 from torch.utils.data import Dataset
 
 class CelebADataset(Dataset):

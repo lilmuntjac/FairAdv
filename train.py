@@ -11,7 +11,8 @@ import torch.nn.functional as F
 
 import utils.utils as utils
 from models.binary_model import BinaryModel
-from utils.data_loader import create_celeba_data_loaders
+from utils.data_loader import (create_celeba_data_loaders, 
+                               create_fairface_data_loaders)
 
 def process_batch(model, images, labels, criterion, optimizer=None, device='cpu'):
     images, labels = images.to(device), labels.to(device)
@@ -81,7 +82,14 @@ def main(config):
     model = BinaryModel(len(config['dataset']['selected_attrs'])).to(device)
     criterion = nn.BCELoss()
     optimizer = optim.Adam(model.parameters(), lr=config['training']['learning_rate'])
-    train_loader, val_loader = create_celeba_data_loaders(
+    
+    if config['dataset']['name'] == 'celeba':
+        loader_function = create_celeba_data_loaders
+    elif config['dataset']['name'] == 'fairface':
+        loader_function = create_fairface_data_loaders
+    else:
+        raise ValueError("Invalid dataset name")
+    train_loader, val_loader = loader_function(
         selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
         batch_size=config['training']['batch_size']
     )

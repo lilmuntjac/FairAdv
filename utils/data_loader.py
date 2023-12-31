@@ -1,15 +1,20 @@
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from datasets.celeba_dataset import CelebADataset
+from datasets.fairface_dataset import FairFaceDataset
 
-def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):
     """ Get the standard transformations for image data. """
-    return transforms.Compose([
+    transforms_list = [
         transforms.Resize((input_size, input_size)),
         transforms.ToTensor(),
         # transforms.Normalize(mean=mean, std=std)
-    ])
-
+    ]
+    if augment:
+        # Insert TrivialAugmentWide at the beginning of the transforms list
+        transforms_list.insert(0, transforms.TrivialAugmentWide())
+    return transforms.Compose(transforms_list)
+    
 def create_celeba_data_loaders(
     attr_file='/tmp2/dataset/celeba/list_attr_celeba.txt',
     partition_file='/tmp2/dataset/celeba/list_eval_partition.txt',
@@ -18,7 +23,8 @@ def create_celeba_data_loaders(
     batch_size=128
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
-    transform = get_transforms()
+    train_transform = get_transforms(augment=True)
+    val_transform = get_transforms()
 
     train_dataset = CelebADataset(
         attr_file=attr_file,
@@ -26,7 +32,7 @@ def create_celeba_data_loaders(
         img_dir=img_dir,
         partition_type=0,  # 0 for train
         selected_attrs=selected_attrs,
-        transform=transform
+        transform=train_transform
     )
 
     val_dataset = CelebADataset(
@@ -35,7 +41,43 @@ def create_celeba_data_loaders(
         img_dir=img_dir,
         partition_type=1,  # 1 for validation
         selected_attrs=selected_attrs,
-        transform=transform
+        transform=val_transform
+    )
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=16, pin_memory=True, drop_last=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False,
+        num_workers=16, pin_memory=True, drop_last=False
+    )
+    return train_loader, val_loader
+
+def create_fairface_data_loaders(
+    train_csv='/tmp2/dataset/fairface-img-margin025-trainval/fairface_label_train.csv',
+    val_csv='/tmp2/dataset/fairface-img-margin025-trainval/fairface_label_train.csv',
+    root_dir='/tmp2/dataset/fairface-img-margin025-trainval',
+    selected_attrs=['age', 'race'],
+    batch_size=128
+):
+    """ Create and return DataLoaders specifically for the FairFace dataset. """
+    train_transform = get_transforms(augment=True)
+    val_transform = get_transforms()
+
+    train_dataset = FairFaceDataset(
+        csv_file=train_csv,
+        root_dir=root_dir,
+        selected_attrs=selected_attrs,
+        transform=train_transform
+    )
+
+    val_dataset = FairFaceDataset(
+        csv_file=val_csv,
+        root_dir=root_dir,
+        selected_attrs=selected_attrs,
+        transform=val_transform
     )
 
     train_loader = DataLoader(
