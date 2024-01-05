@@ -1,0 +1,31 @@
+# model:
+#   num_attributes: 2  # Number of attributes for BinaryModel
+#   model_path: "/tmp2/npe/model/celeba_test/checkpoint_epoch_1.pth"
+
+training:
+  batch_size: 128
+  # num_epochs: 10
+  random_seed: 2665
+
+  use_cuda: true
+  gpu_id: 3
+
+  # save_path: "/tmp2/npe/pert/celeba_test"
+  save_path: "./"
+
+attack:
+  pattern_type: frame
+  alpha: 0.001          # Step size per attack iteration
+  iters: 1             # Number of attack iterations
+  base_path: null
+
+  epsilon: 0.063        # used if parttern is perturbation
+  frame_thickness: 0.05 # used if parttern is frame
+
+dataset:
+  name: 'celeba'
+  selected_attrs:
+    - Smiling
+    - Young
+    
+  protected_attr: 'Male'

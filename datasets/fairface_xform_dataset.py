@@ -5,9 +5,8 @@ import numpy as np
 
 from torch.utils.data import Dataset
 
-class FairFaceDataset(Dataset):
-    """Custom PyTorch Dataset class for the FairFace dataset."""
-
+class FairFaceXformDataset(Dataset):
+    """"""
     def __init__(self, csv_file, root_dir, selected_attrs=None, transform=None):
         """
         Args:
@@ -19,7 +18,7 @@ class FairFaceDataset(Dataset):
         self.attributes = pd.read_csv(csv_file)
         self.root_dir = Path(root_dir)
         self.transform = transform
-        
+
         # Set default for selected_attrs if None
         if selected_attrs is None:
             selected_attrs = ['age', 'gender', 'race']
@@ -31,17 +30,17 @@ class FairFaceDataset(Dataset):
         self.gender_dict = {'Male': 0, 'Female': 1}
         self.age_dict = {'0-2': 0, '3-9': 1, '10-19': 2, '20-29': 3,
                          '30-39': 4, '40-49': 5, '50-59': 6, '60-69': 7, 'more than 70': 8}
-
     def __len__(self):
         return len(self.attributes.index)
-
+    
     def __getitem__(self, index):
         """
         Args:
-            index (int): Index of the item to fetch.
+            idx (int): Index of the item to fetch.
 
         Returns:
-            tuple: (image, target) where target is the labels of the image attributes.
+            tuple: (image, theta, target) where theta is the affine transformation matrix and
+                   target is a tensor of selected attributes.
         """
         img_name = self.attributes.iloc[index]['file']
         img_path = self.root_dir / img_name
@@ -49,7 +48,7 @@ class FairFaceDataset(Dataset):
 
         if self.transform:
             image = self.transform(image)
-
+        
         # Get attributes
         race = self.attributes.iloc[index]['race']
         gender = self.attributes.iloc[index]['gender']
@@ -70,4 +69,8 @@ class FairFaceDataset(Dataset):
         target = [target_labels[attr] for attr in self.selected_attrs]
         target = np.array(target, dtype=np.float32)
 
-        return image, target
+        # Extract theta values as a numpy array
+        theta_values = self.attributes.iloc[index, -6:].values.astype('float32')
+        theta = theta_values.reshape(2, 3)
+
+        return image, theta, target

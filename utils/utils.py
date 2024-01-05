@@ -2,6 +2,10 @@ import yaml
 
 import torch
 
+from .data_loader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
+                          create_fairface_data_loaders, create_fairface_xform_data_loaders)
+from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
+
 def load_config(config_path):
     """ Load YAML configuration file. """
     with open(config_path, 'r') as file:
@@ -12,6 +16,55 @@ def set_seed(seed):
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+
+def select_data_loader(config):
+    dataset_name = config['dataset']['name']
+    pattern_type = config['attack']['pattern_type']
+
+    if pattern_type in ['perturbation', 'frame']:
+        if dataset_name == 'celeba':
+            return create_celeba_data_loaders
+        elif dataset_name == 'fairface':
+            return create_fairface_data_loaders
+
+    elif pattern_type == 'eyeglasses':
+        if dataset_name == 'celeba':
+            return create_celeba_xform_data_loaders
+        elif dataset_name == 'fairface':
+            return create_fairface_xform_data_loaders
+
+    raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
+
+def select_applier(config, device='cpu'):
+    pattern_type = config['attack']['pattern_type']
+    base_path  = config['attack'].get('base_path')
+
+    if pattern_type == 'perturbation':
+        if base_path:
+            return PerturbationApplier(perturbation_path=base_path, device=device)
+        else:
+            # Random tensor for PerturbationApplier
+            epsilon = config['attack']['epsilon']
+            random_tensor = torch.rand((1, 3, 224, 224)) * 2 - 1
+            random_tensor.clamp_(-epsilon, epsilon)
+            return PerturbationApplier(perturbation=random_tensor, device=device)
+    elif pattern_type == 'frame':
+        frame_thickness = config['attack'].get('frame_thickness', 0.1)
+        if base_path:
+            return FrameApplier(frame_thickness=frame_thickness, frame_path=base_path, device=device)
+        else:
+            # Random tensor for FrameApplier
+            random_tensor = torch.rand((1, 3, 224, 224))
+            return FrameApplier(frame_thickness=frame_thickness, frame=random_tensor, device=device)
+    elif pattern_type == 'eyeglasses':
+        if base_path:
+            return EyeglassesApplier(eyeglasses_path=base_path, device=device)
+        else:
+            # Random tensor for EyeglassesApplier
+            random_tensor = torch.rand((1, 3, 224, 224))
+            return EyeglassesApplier(eyeglasses=random_tensor, device=device)
+    else:
+        raise ValueError(f"Invalid pattern: {pattern_type}")
 
 def normalize(images, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
     """ Normalize a batch of images. """
