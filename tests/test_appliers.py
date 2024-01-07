@@ -17,18 +17,19 @@ import torch.nn.functional as F
 from torchvision.utils import save_image
 
 import utils.utils as utils
-from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
 
 def apply_pattern_and_save(loader, applier, save_path, device):
+    eyeglasses_applier_class = 'EyeglassesApplier'  # Class name as a string
+
     for batch_idx, batch in enumerate(loader):
-        if len(batch) == 3: # the loade include theta
+        if len(batch) == 3: # the loader include theta
             images, theta, _ = batch
             images, theta = images.to(device), theta.to(device)
-            if isinstance(applier, EyeglassesApplier):
+            if type(applier).__name__ == eyeglasses_applier_class:
                 forged_images = applier.apply(images, theta)
             else:
                 forged_images = applier.apply(images)
-        elif len(batch) == 2:
+        elif len(batch) == 2: # normal loader
             images, _ = batch
             images = images.to(device)
             forged_images = applier.apply(images)
