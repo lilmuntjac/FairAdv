@@ -59,7 +59,7 @@ def main(config):
 
     utils.set_seed(config['training']['random_seed'])
 
-    # Setup data loader based on attack patter
+    # Setup data loader based on attack pattern
     loader_function = utils.select_data_loader(config)
     train_loader, val_loader = loader_function(
         selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
