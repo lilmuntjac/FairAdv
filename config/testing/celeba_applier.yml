@@ -8,13 +8,14 @@ training:
   random_seed: 2665
 
   use_cuda: true
-  gpu_id: 3
+  gpu_id: 6
 
   # save_path: "/tmp2/npe/pert/celeba_test"
   save_path: "./"
 
 attack:
-  pattern_type: frame
+  # support pattern perturbation, frame, eyeglasses
+  pattern_type: eyeglasses
   alpha: 0.001          # Step size per attack iteration
   iters: 1             # Number of attack iterations
   base_path: null

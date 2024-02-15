@@ -1,0 +1,20 @@
+training:
+  # Basic training parameters
+  batch_size: 64
+  num_epochs: 2
+  learning_rate: 0.001
+  random_seed: 2665
+
+  # GPU configuration
+  use_cuda: true
+  gpu_id: 4
+
+  # Path for saving model and performance data
+  save_path: "/tmp2/npe/model/fairface_test"
+
+dataset:
+  name: 'fairface'
+  selected_attrs:
+    - age
+  
+  protected_attr: 'race'

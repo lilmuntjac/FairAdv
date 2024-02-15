@@ -7,14 +7,14 @@ training:
 
   # GPU configuration
   use_cuda: true
-  gpu_id: 2
+  gpu_id: 5
 
   # Path for saving model and performance data
-  save_path: "/tmp2/npe/model/fairface_test"
+  save_path: "/tmp2/npe/model/ham10000_test"
 
 dataset:
-  name: 'fairface'
-  selected_attrs:
-    - age
+  name: 'ham10000'
+  class_number: 7
   
-  protected_attr: 'race'
+  selected_attr: 'diagnosis'
+  protected_attr: 'sex'

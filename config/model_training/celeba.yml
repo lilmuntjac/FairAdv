@@ -7,7 +7,7 @@ training:
 
   # GPU configuration
   use_cuda: true
-  gpu_id: 1
+  gpu_id: 3
 
   # Path for saving model and performance data
   save_path: "/tmp2/npe/model/celeba_test"

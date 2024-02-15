@@ -4,19 +4,22 @@ model:
 
 training:
   batch_size: 128
-  num_epochs: 10
+  num_epochs: 2
   random_seed: 2665
 
   use_cuda: true
-  gpu_id: 3
+  gpu_id: 6
 
   save_path: "/tmp2/npe/pert/celeba_test"
 
 attack:
-  epsilon: 0.03  # Maximum perturbation size
+  pattern_type: perturbation
   alpha: 0.01   # Step size per attack iteration
   iters: 1     # Number of attack iterations
   base_path: null
+
+  epsilon: 0.063        # used if parttern is perturbation
+  frame_thickness: 0.05 # used if parttern is frame
 
 dataset:
   name: 'celeba'
