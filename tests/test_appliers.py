@@ -61,10 +61,7 @@ def main(config):
 
     # Setup data loader based on attack pattern
     loader_function = utils.select_data_loader(config)
-    train_loader, val_loader = loader_function(
-        selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
-        batch_size=config['training']['batch_size']
-    )
+    train_loader, val_loader = utils.select_data_loader(config)
     setup_end = time.perf_counter()
     print(f"Setup Time: {setup_end - setup_start:.4f} seconds")
 
@@ -72,7 +69,7 @@ def main(config):
     save_path = Path(config['training']['save_path']) / "forged_images"
     save_path.mkdir(parents=True, exist_ok=True)
 
-    applier = utils.select_applier(config, device)
+    applier = utils.select_applier(config, device=device)
     apply_pattern_and_save(val_loader, applier, save_path, device)
 
     total_time_seconds = time.perf_counter() - setup_start

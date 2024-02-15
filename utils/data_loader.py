@@ -4,6 +4,7 @@ from datasets.celeba_dataset import CelebADataset
 from datasets.celeba_xform_dataset import CelebAXformDataset
 from datasets.fairface_dataset import FairFaceDataset
 from datasets.fairface_xform_dataset import FairFaceXformDataset
+from datasets.ham10000_dataset import HAM10000Dataset
 
 def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):
     """ Get the standard transformations for image data. """
@@ -151,6 +152,39 @@ def create_fairface_xform_data_loaders(
         csv_file=val_csv,
         root_dir=root_dir,
         selected_attrs=selected_attrs,
+        transform=val_transform
+    )
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True,
+        num_workers=16, pin_memory=True, drop_last=True
+    )
+
+    val_loader = DataLoader(
+        val_dataset, batch_size=batch_size, shuffle=False,
+        num_workers=16, pin_memory=True, drop_last=False
+    )
+    return train_loader, val_loader
+
+def create_ham10000_data_loaders(
+        train_csv='/tmp2/dataset/HAM10000/ham10000_train.csv',
+        val_csv='/tmp2/dataset/HAM10000/ham10000_val.csv',
+        img_dir='/tmp2/dataset/HAM10000/train', # we don't use test set cause a lot of gender is missing
+        batch_size=128
+):
+    """ Create and return DataLoaders specifically for the HAM10000 dataset. """
+    train_transform = get_transforms(augment=True)
+    val_transform = get_transforms()
+
+    train_dataset = HAM10000Dataset(
+        csv_file=train_csv,
+        img_dir=img_dir,
+        transform=train_transform
+    )
+
+    val_dataset = HAM10000Dataset(
+        csv_file=val_csv,
+        img_dir=img_dir,
         transform=val_transform
     )
 

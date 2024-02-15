@@ -12,9 +12,6 @@ import torch.nn.functional as F
 import utils.utils as utils
 from adversarial.losses.direct_loss import binary_eqodd_loss
 from models.binary_model import BinaryModel
-from adversarial.perturbation_applier import PerturbationApplier
-from utils.data_loader import (create_celeba_data_loaders, 
-                               create_fairface_data_loaders)
 
 def attack(model, images, labels, applier, epsilon, alpha, iters):
     for _ in range(iters):
@@ -42,19 +39,30 @@ def validation(model, images, labels, applier):
 
     return conf_matrix
 
-def run_adversarial(model, train_loader, val_loader, attack_params, device, save_path, attr_list, base_path=None):
+def print_epoch_summary(epoch, train_conf, val_conf, attr_list):
+    # Compute and print metrics for each attribute
+    print(f'\nEpoch {epoch + 1} Summary:')
+    for attr_index, attr_name in enumerate(attr_list):
+        # Extract confusion matrices for the current attribute and epoch
+        train_group1_matrix = train_conf[attr_index, 0]
+        train_group2_matrix = train_conf[attr_index, 1]
+        val_group1_matrix = val_conf[attr_index, 0]
+        val_group2_matrix = val_conf[attr_index, 1]
+
+        # Calculate metrics for the current attribute
+        train_metrics = utils.calculate_metrics_for_attribute(train_group1_matrix, train_group2_matrix)
+        val_metrics = utils.calculate_metrics_for_attribute(val_group1_matrix, val_group2_matrix)
+        print(f'\nAttribute {attr_name} Metrics:')
+        print(f'  Train      - Group 1 Accuracy: {train_metrics[0]:.4f}, Group 2 Accuracy: {train_metrics[1]:.4f}, '
+              f'Total Accuracy: {train_metrics[2]:.4f}, Equalized Odds: {train_metrics[3]:.4f}')
+        print(f'  Validation - Group 1 Accuracy: {val_metrics[0]:.4f}, Group 2 Accuracy: {val_metrics[1]:.4f}, '
+              f'Total Accuracy: {val_metrics[2]:.4f}, Equalized Odds: {val_metrics[3]:.4f}')
+
+def run_adversarial(model, train_loader, val_loader, applier, attack_params, device, save_path, attr_list):
     """Run adversarial attack and evaluate on train and validation datasets."""
     train_epoch_conf_matrices = []
     val_epoch_conf_matrices = []
     model.eval()
-    # Initialize applier
-    if base_path:
-        applier = PerturbationApplier(perturbation_path=Path(base_path), device=device)
-    else:
-        # Create a random perturbation tensor if no path is provided
-        random_perturbation = (torch.rand_like(next(iter(train_loader))[0][0]) * 2 - 1) * attack_params['epsilon']
-        random_perturbation = random_perturbation.to(device).unsqueeze(0)  # Add batch dimension
-        applier = PerturbationApplier(perturbation=random_perturbation, device=device)
 
     # Adversarial training loop
     for epoch in range(attack_params['epoch']):
@@ -85,31 +93,12 @@ def run_adversarial(model, train_loader, val_loader, attack_params, device, save
                     val_conf_matrices += conf_matrix
             val_epoch_conf_matrices.append(val_conf_matrices)
 
-        print(f'\nEpoch {epoch + 1} Summary:')
-
-        # Compute and print metrics for each attribute
-        for attr_index, attr_name in enumerate(attr_list):
-            # Extract confusion matrices for the current attribute and epoch
-            train_group1_matrix = train_conf_matrices[attr_index, 0]
-            train_group2_matrix = train_conf_matrices[attr_index, 1]
-            val_group1_matrix = val_conf_matrices[attr_index, 0]
-            val_group2_matrix = val_conf_matrices[attr_index, 1]
-
-            # Calculate metrics for the current attribute
-            train_metrics = utils.calculate_metrics_for_attribute(train_group1_matrix, train_group2_matrix)
-            val_metrics = utils.calculate_metrics_for_attribute(val_group1_matrix, val_group2_matrix)
-
-            print(f'\nAttribute {attr_name} Metrics:')
-            print(f'  Train      - Group 1 Accuracy: {train_metrics[0]:.4f}, Group 2 Accuracy: {train_metrics[1]:.4f}, '
-                  f'Total Accuracy: {train_metrics[2]:.4f}, Equalized Odds: {train_metrics[3]:.4f}')
-            print(f'  Validation - Group 1 Accuracy: {val_metrics[0]:.4f}, Group 2 Accuracy: {val_metrics[1]:.4f}, '
-                  f'Total Accuracy: {val_metrics[2]:.4f}, Equalized Odds: {val_metrics[3]:.4f}')
+        print_epoch_summary(epoch, train_conf_matrices, val_conf_matrices, attr_list)
+        # Save the optimized base image
+        torch.save(applier.get(), save_path / f"base_{epoch + 1:04d}.pt")
 
     train_epoch_conf_matrices = torch.stack(train_epoch_conf_matrices)
     val_epoch_conf_matrices = torch.stack(val_epoch_conf_matrices)
-
-    # Save the optimized base image
-    torch.save(applier.get(), save_path / "adversarial_base.pt")
 
     return train_epoch_conf_matrices, val_epoch_conf_matrices
     
@@ -136,21 +125,15 @@ def main(config):
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
-    # Setup dataloader
-    if config['dataset']['name'] == 'celeba':
-        loader_function = create_celeba_data_loaders
-    elif config['dataset']['name'] == 'fairface':
-        loader_function = create_fairface_data_loaders
-    else:
-        raise ValueError("Invalid dataset name")
-    train_loader, val_loader = loader_function(
-        selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
-        batch_size=config['training']['batch_size']
-    )
+    # Setup data loader based on attack pattern
+    train_loader, val_loader = utils.select_data_loader(config)
     setup_end = time.perf_counter()
     print(f"Setup Time: {setup_end - setup_start:.4f} seconds")
 
     # Train the adversarial perturbation
+    save_path = Path(config['training']['save_path'])
+    applier = utils.select_applier(config, device=device)
+
     attack_params = {
         'epoch': config['training']['num_epochs'],
         'epsilon': config['attack']['epsilon'],
@@ -158,11 +141,9 @@ def main(config):
         'iters': config['attack']['iters'],
     }
 
-    save_path = Path(config['training']['save_path'])
-    base_path = config['attack']['base_path']
     attr_list = config['dataset']['selected_attrs'] # for print message to the console
     train_epoch_conf_matrices, val_epoch_conf_matrices = run_adversarial(
-        model, train_loader, val_loader, attack_params, device, save_path, attr_list, base_path
+        model, train_loader, val_loader, applier, attack_params, device, save_path, attr_list,
     )
 
     # Save performance tensors

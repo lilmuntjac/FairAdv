@@ -3,7 +3,8 @@ import yaml
 import torch
 
 from .data_loader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
-                          create_fairface_data_loaders, create_fairface_xform_data_loaders)
+                          create_fairface_data_loaders, create_fairface_xform_data_loaders,
+                          create_ham10000_data_loaders)
 from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
 
 def load_config(config_path):
@@ -19,52 +20,64 @@ def set_seed(seed):
 
 def select_data_loader(config):
     dataset_name = config['dataset']['name']
-    pattern_type = config['attack']['pattern_type']
+    pattern_type = config.get('attack', {}).get('pattern_type', 'perturbation')
 
-    if pattern_type in ['perturbation', 'frame']:
+    if pattern_type == 'eyeglasses':
         if dataset_name == 'celeba':
-            return create_celeba_data_loaders
+            loader_function = create_celeba_xform_data_loaders
         elif dataset_name == 'fairface':
-            return create_fairface_data_loaders
-
-    elif pattern_type == 'eyeglasses':
+            loader_function = create_fairface_xform_data_loaders
+        elif dataset_name == 'ham10000':
+            raise ValueError('Cannot apply eyeglasses onto HAM10000 dataset')
+    else:
+        # Default behavior for 'perturbation' and 'frame'
         if dataset_name == 'celeba':
-            return create_celeba_xform_data_loaders
+            loader_function = create_celeba_data_loaders
         elif dataset_name == 'fairface':
-            return create_fairface_xform_data_loaders
+            loader_function = create_fairface_data_loaders
+        elif dataset_name == 'ham10000':
+            loader_function = create_ham10000_data_loaders
+            train_loader, val_loader = loader_function(batch_size=config['training']['batch_size'])
+            return train_loader, val_loader
+        else:
+            raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
+    train_loader, val_loader = loader_function(
+        selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
+        batch_size=config['training']['batch_size']
+    )
+    return train_loader, val_loader
 
-    raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
-
-def select_applier(config, device='cpu'):
+def select_applier(config, pattern=None, device='cpu'):
     pattern_type = config['attack']['pattern_type']
     base_path  = config['attack'].get('base_path')
+    epsilon = config['attack'].get('epsilon')
+    frame_thickness = config['attack'].get('frame_thickness')
 
+    # Create or use the provided pattern
+    if pattern is None and not base_path:
+        random_tensor = torch.rand((1, 3, 224, 224)) * 2 - 1
+        if pattern_type == 'perturbation':
+            pattern = random_tensor * 2 - 1
+            pattern = pattern.clamp_(-epsilon, epsilon)
+        elif pattern_type in ['frame', 'eyeglasses']:
+            pattern = random_tensor
+
+    # Select and return the appropriate applier
     if pattern_type == 'perturbation':
-        if base_path:
-            return PerturbationApplier(perturbation_path=base_path, device=device)
-        else:
-            # Random tensor for PerturbationApplier
-            epsilon = config['attack']['epsilon']
-            random_tensor = torch.rand((1, 3, 224, 224)) * 2 - 1
-            random_tensor.clamp_(-epsilon, epsilon)
-            return PerturbationApplier(perturbation=random_tensor, device=device)
+        return PerturbationApplier(
+            perturbation=pattern, perturbation_path=base_path, device=device
+        )
     elif pattern_type == 'frame':
-        frame_thickness = config['attack'].get('frame_thickness', 0.1)
-        if base_path:
-            return FrameApplier(frame_thickness=frame_thickness, frame_path=base_path, device=device)
-        else:
-            # Random tensor for FrameApplier
-            random_tensor = torch.rand((1, 3, 224, 224))
-            return FrameApplier(frame_thickness=frame_thickness, frame=random_tensor, device=device)
+        return FrameApplier(
+            frame_thickness=frame_thickness, frame=pattern, 
+            frame_path=base_path, device=device
+        )
     elif pattern_type == 'eyeglasses':
-        if base_path:
-            return EyeglassesApplier(eyeglasses_path=base_path, device=device)
-        else:
-            # Random tensor for EyeglassesApplier
-            random_tensor = torch.rand((1, 3, 224, 224))
-            return EyeglassesApplier(eyeglasses=random_tensor, device=device)
+        return EyeglassesApplier(
+            eyeglasses=pattern, eyeglasses_path=base_path, device=device
+        )
     else:
-        raise ValueError(f"Invalid pattern: {pattern_type}")
+        raise ValueError(f"Invalid pattern type: {pattern_type}")
 
 def normalize(images, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
     """ Normalize a batch of images. """
@@ -106,6 +119,38 @@ def get_confusion_matrix_counts(predictions, labels):
 
     return conf_matrix
 
+def get_rights_and_wrongs_counts(predictions, labels):
+    """
+    Calculate the counts of correct and incorrect predictions for each attribute, 
+    split by the protected attribute.
+
+    Args:
+    - predictions (torch.Tensor): A tensor of model predictions.
+    - labels (torch.Tensor): A tensor of true labels, where the last column 
+                             represents the protected attribute.
+
+    Returns:
+    - torch.Tensor: A tensor of shape (2, 2), where the first dimension represents 
+                    the group based on the protected attribute, and the second 
+                    dimension contains counts of correct (index 0) and incorrect 
+                    (index 1) predictions.
+    """
+    counts = torch.zeros((2, 2), dtype=torch.int64)  # Tensor to store counts
+
+    protected_attr = labels[:, -1]
+
+    for group_idx in [0, 1]:
+        group_mask = (protected_attr == group_idx)
+        group_preds = predictions[group_mask]
+        group_labels = labels[group_mask,0]  # Exclude the protected attribute
+
+        rights = torch.sum(group_preds == group_labels)
+        wrongs = torch.sum(group_preds != group_labels)
+
+        counts[group_idx] = torch.tensor([rights, wrongs], dtype=torch.int64)
+
+    return counts
+
 def calculate_accuracy(TP, FP, FN, TN):
     """ Calculate accuracy given confusion matrix components. """
     total = TP + FP + FN + TN
@@ -131,3 +176,47 @@ def calculate_metrics_for_attribute(group1_matrix, group2_matrix):
     equalized_odds = calculate_equalized_odds(TP1, FP1, FN1, TN1, TP2, FP2, FN2, TN2)
 
     return group1_acc, group2_acc, total_acc, equalized_odds
+
+def calculate_accuracy_for_attribute(group1_matrix, group2_matrix):
+    """ Calculate accuracy for a single attribute. """
+    R1, W1 = group1_matrix
+    R2, W2 = group2_matrix
+
+    group1_acc = R1 / (R1 + W1) if R1 + W1 != 0 else 0
+    group2_acc = R2 / (R2 + W2) if R2 + W2 != 0 else 0
+    total_instances = R1 + R2 + W1 + W2
+    total_acc = (R1 + R2) / total_instances if total_instances != 0 else 0
+    differences_acc = abs(group1_acc-group2_acc)
+
+    return group1_acc, group2_acc, total_acc, differences_acc
+
+def print_binary_model_summary(train_stats_count, val_stats_count, attr_list):
+    for attr_index, attr_name in enumerate(attr_list):
+        # Extract confusion matrices for the current attribute and epoch
+        train_group1_matrix = train_stats_count[attr_index, 0]
+        train_group2_matrix = train_stats_count[attr_index, 1]
+        val_group1_matrix = val_stats_count[attr_index, 0]
+        val_group2_matrix = val_stats_count[attr_index, 1]
+        
+        train_metrics = calculate_metrics_for_attribute(train_group1_matrix, train_group2_matrix)
+        val_metrics = calculate_metrics_for_attribute(val_group1_matrix, val_group2_matrix)
+        print(f'\nAttribute {attr_name} Metrics:')
+        print(f'  Train      - Group 1 Accuracy: {train_metrics[0]:.4f}, Group 2 Accuracy: {train_metrics[1]:.4f}, '
+              f'Total Accuracy: {train_metrics[2]:.4f}, Equalized Odds: {train_metrics[3]:.4f}')
+        print(f'  Validation - Group 1 Accuracy: {val_metrics[0]:.4f}, Group 2 Accuracy: {val_metrics[1]:.4f}, '
+              f'Total Accuracy: {val_metrics[2]:.4f}, Equalized Odds: {val_metrics[3]:.4f}')
+        
+def print_multiclass_model_summary(train_stats_count, val_stats_count, attr_name) :
+    train_group1_matrix = train_stats_count[0]
+    train_group2_matrix = train_stats_count[1]
+    val_group1_matrix = val_stats_count[0]
+    val_group2_matrix = val_stats_count[1]
+
+    train_metrics = calculate_accuracy_for_attribute(train_group1_matrix, train_group2_matrix)
+    val_metrics = calculate_accuracy_for_attribute(val_group1_matrix, val_group2_matrix)
+
+    print(f'\nAttribute {attr_name} Metrics:')
+    print(f'  Train      - Group 1 Accuracy: {train_metrics[0]:.4f}, Group 2 Accuracy: {train_metrics[1]:.4f}, '
+          f'Total Accuracy: {train_metrics[2]:.4f}, Acc. diffrernce: {train_metrics[3]:.4f}')
+    print(f'  Validation - Group 1 Accuracy: {val_metrics[0]:.4f}, Group 2 Accuracy: {val_metrics[1]:.4f}, '
+          f'Total Accuracy: {val_metrics[2]:.4f}, Acc. diffrernce: {val_metrics[3]:.4f}') 
