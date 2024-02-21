@@ -130,7 +130,7 @@ def main(config):
             utils.print_binary_model_summary(train_stats_count, val_stats_count, config['dataset']['selected_attrs'])
 
         # Save model checkpoint
-        checkpoint_path = save_path / f'checkpoint_epoch_{epoch+1}.pth'
+        checkpoint_path = save_path / f'checkpoint_epoch_{epoch+1:04d}.pth'
         torch.save(model.state_dict(), checkpoint_path)
 
     # Save performance tensors
