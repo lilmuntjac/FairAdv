@@ -1,0 +1,58 @@
+training:
+  # Basic training parameters
+  batch_size: 64
+  num_epochs: 20
+  learning_rate: 0.001
+  random_seed: 2665
+
+  # GPU configuration
+  use_cuda: true
+  gpu_id: 0
+
+  # Path for saving model and performance data
+  save_path: "/tmp2/pfe/model/celeba_39_male"
+
+dataset:
+  name: 'celeba'
+  selected_attrs:
+    - 5_o_Clock_Shadow
+    - Arched_Eyebrows
+    - Attractive
+    - Bags_Under_Eyes
+    - Bald 
+    - Bangs
+    - Big_Lips
+    - Big_Nose
+    - Black_Hair
+    - Blond_Hair
+    - Blurry
+    - Brown_Hair
+    - Bushy_Eyebrows
+    - Chubby
+    - Double_Chin
+    - Eyeglasses
+    - Goatee
+    - Gray_Hair
+    - Heavy_Makeup
+    - High_Cheekbones
+    - Mouth_Slightly_Open
+    - Mustache
+    - Narrow_Eyes
+    - No_Beard
+    - Oval_Face
+    - Pale_Skin
+    - Pointy_Nose
+    - Receding_Hairline
+    - Rosy_Cheeks
+    - Sideburns
+    - Smiling
+    - Straight_Hair
+    - Wavy_Hair
+    - Wearing_Earrings
+    - Wearing_Hat
+    - Wearing_Lipstick
+    - Wearing_Necklace
+    - Wearing_Necktie
+    - Young 
+
+  protected_attr: 'Male'
