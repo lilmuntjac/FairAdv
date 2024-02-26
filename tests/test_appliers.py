@@ -60,7 +60,6 @@ def main(config):
     utils.set_seed(config['training']['random_seed'])
 
     # Setup data loader based on attack pattern
-    loader_function = utils.select_data_loader(config)
     train_loader, val_loader = utils.select_data_loader(config)
     setup_end = time.perf_counter()
     print(f"Setup Time: {setup_end - setup_start:.4f} seconds")

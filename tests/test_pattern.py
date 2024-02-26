@@ -44,7 +44,7 @@ def validate_adversarial(model, val_loader, applier, device, attr_list):
             images, labels = images.to(device), labels.to(device)
             conf_matrix = validation(model, images, labels, applier)
             if val_conf_matrices is None:
-                    val_conf_matrices = conf_matrix
+                val_conf_matrices = conf_matrix
             else:
                 val_conf_matrices += conf_matrix
 
@@ -72,7 +72,6 @@ def main(config):
     model.eval()
 
     # Setup data loader based on attack pattern
-    loader_function = utils.select_data_loader(config)
     train_loader, val_loader = utils.select_data_loader(config)
     setup_end = time.perf_counter()
     print(f"Setup Time: {setup_end - setup_start:.4f} seconds")
