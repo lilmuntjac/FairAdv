@@ -42,7 +42,7 @@ def create_celeba_data_loaders(
         attr_file=attr_file,
         partition_file=partition_file,
         img_dir=img_dir,
-        partition_type=1,  # 1 for validation
+        partition_type=2,  # 1 for validation, 2 for test
         selected_attrs=selected_attrs,
         transform=val_transform
     )
@@ -60,7 +60,7 @@ def create_celeba_data_loaders(
 
 def create_celeba_xform_data_loaders(
     train_csv='/tmp2/dataset/celeba_tm/celeba_tm_train.csv',
-    val_csv='/tmp2/dataset/celeba_tm/celeba_tm_val.csv',
+    val_csv='/tmp2/dataset/celeba_tm/celeba_tm_test.csv',
     img_dir='/tmp2/dataset/celeba/img_align_celeba',
     selected_attrs=None,
     batch_size=128
