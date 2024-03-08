@@ -1,0 +1,20 @@
+training:
+  # Basic training parameters
+  batch_size: 64
+  num_epochs: 30
+  learning_rate: 0.001
+  random_seed: 2665
+
+  # GPU configuration
+  use_cuda: true
+  gpu_id: 0
+
+  # Path for saving model and performance data
+  save_path: "/tmp2/pfe/model/celeba_attractive_male"
+
+dataset:
+  name: 'celeba'
+  selected_attrs:
+    - Attractive
+    
+  protected_attr: 'Male'
