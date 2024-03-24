@@ -11,11 +11,22 @@ class MulticlassModel(nn.Module):
                                where the model outputs a probability distribution over these classes.
         """
         super(MulticlassModel, self).__init__()
-        # Load pre-trained ResNet18 using the new weights argument
-        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        # Initialize the base ResNet18 model with pre-trained weights
+        self.base = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 
-        # Replace the final fully connected layer
-        self.model.fc = nn.Linear(512, num_classes)
+        self.features = nn.Sequential(*list(self.base.children())[:-2])
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.fc = nn.Linear(512, num_classes)
 
-    def forward(self, x):
-        return self.model(x)
+    def forward(self, x, get_feature=False):
+        # Extract feature maps from the 4th block
+        feature = self.features(x)
+        pooled_output = self.avgpool(feature)
+        pooled_output = torch.flatten(pooled_output, 1)
+        final_output = self.fc(pooled_output)
+
+        # Return both the final output and the feature map if requested
+        if get_feature:
+            return final_output, feature
+        else:
+            return final_output

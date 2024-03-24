@@ -1,8 +1,8 @@
 training:
-  method: generic
+  method: mfd
   # Basic training parameters
-  batch_size: 64
-  final_epoch: 30
+  batch_size: 128
+  final_epoch: 2
   learning_rate: 0.001
   random_seed: 2665
   scheduler: null
@@ -11,15 +11,21 @@ training:
   use_cuda: true
   gpu_id: 4
 
+  # Warning, these settings are for student model
   # Optional: Path for loading pre-trained model weights
   # load_path:
   # load_stats:
   # Path for saving model and performance data
-  save_path: "/tmp2/pfe/model/celeba_bagsundereyes_male"
+  save_path: "/tmp2/pfe/mfd/celeba_attractive_male"
+
+mfd:
+  # path to the teacher model, assume it has the same structure as the students
+  teacher_path: "/tmp2/pfe/model/celeba_attractive_male/checkpoint_epoch_0025.pth"
+  lamda: 1.5
 
 dataset:
   name: 'celeba'
   type: 'binary' # 'binary' or 'multi-class'
   selected_attrs:
-    - Bags_Under_Eyes
+    - Attractive
   protected_attr: 'Male'

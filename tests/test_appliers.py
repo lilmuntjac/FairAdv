@@ -47,17 +47,8 @@ def main(config):
     setup_start = time.perf_counter()
     save_path = Path(config['training']['save_path'])
     save_path.mkdir(parents=True, exist_ok=True)
-    print(f"PyTorch Version: {torch.__version__}")
-
-    if config['training']['use_cuda']:
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(config['training']['gpu_id'])
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is not available, but 'use_cuda' is set to True in the configuration.")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    utils.set_seed(config['training']['random_seed'])
+    
+    device = utils.config_env(config)
 
     # Setup data loader based on attack pattern
     train_loader, val_loader = utils.select_data_loader(config)

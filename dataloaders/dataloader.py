@@ -1,3 +1,5 @@
+import time
+
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from datasets.celeba_dataset import CelebADataset
@@ -5,6 +7,7 @@ from datasets.celeba_xform_dataset import CelebAXformDataset
 from datasets.fairface_dataset import FairFaceDataset
 from datasets.fairface_xform_dataset import FairFaceXformDataset
 from datasets.ham10000_dataset import HAM10000Dataset
+from .samplers import BalancedBatchSampler
 
 def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):
     """ Get the standard transformations for image data. """
@@ -23,9 +26,13 @@ def create_celeba_data_loaders(
     partition_file='/tmp2/dataset/celeba/list_eval_partition.txt',
     img_dir='/tmp2/dataset/celeba/img_align_celeba',
     selected_attrs=None,
+    sampler=None,
     batch_size=128
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
+    return_subgroups = False
+    if sampler in ['balanced_batch_sampler', ]:
+        return_subgroups = True
     train_transform = get_transforms(augment=True)
     val_transform = get_transforms()
 
@@ -35,7 +42,8 @@ def create_celeba_data_loaders(
         img_dir=img_dir,
         partition_type=0,  # 0 for train
         selected_attrs=selected_attrs,
-        transform=train_transform
+        transform=train_transform,
+        return_subgroups=return_subgroups
     )
 
     val_dataset = CelebADataset(
@@ -47,10 +55,16 @@ def create_celeba_data_loaders(
         transform=val_transform
     )
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=16, pin_memory=True, drop_last=True
-    )
+    if sampler == 'balanced_batch_sampler':
+        bbs = BalancedBatchSampler(dataset=train_dataset, batch_size=batch_size)
+        train_loader = DataLoader(
+            train_dataset, batch_sampler=bbs, num_workers=16, pin_memory=True
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            num_workers=16, pin_memory=True, drop_last=True
+        )
 
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
@@ -63,9 +77,13 @@ def create_celeba_xform_data_loaders(
     val_csv='/tmp2/dataset/celeba_tm/celeba_tm_test.csv',
     img_dir='/tmp2/dataset/celeba/img_align_celeba',
     selected_attrs=None,
+    sampler=None,
     batch_size=128
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
+    return_subgroups = False
+    if sampler in ['balanced_batch_sampler', ]:
+        return_subgroups = True
     train_transform = get_transforms(augment=True)
     val_transform = get_transforms()
 
@@ -73,7 +91,8 @@ def create_celeba_xform_data_loaders(
         csv_file=train_csv,
         img_dir=img_dir,
         selected_attrs=selected_attrs,
-        transform=train_transform
+        transform=train_transform,
+        return_subgroups=return_subgroups
     )
 
     val_dataset = CelebAXformDataset(
@@ -83,10 +102,16 @@ def create_celeba_xform_data_loaders(
         transform=val_transform
     )
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=16, pin_memory=True, drop_last=True
-    )
+    if sampler == 'balanced_batch_sampler':
+        bbs = BalancedBatchSampler(dataset=train_dataset, batch_size=batch_size)
+        train_loader = DataLoader(
+            train_dataset, batch_sampler=bbs, num_workers=16, pin_memory=True
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            num_workers=16, pin_memory=True, drop_last=True
+        )
 
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,

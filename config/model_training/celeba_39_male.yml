@@ -1,19 +1,25 @@
 training:
+  method: generic
   # Basic training parameters
   batch_size: 64
-  num_epochs: 20
+  final_epoch: 20
   learning_rate: 0.001
   random_seed: 2665
+  scheduler: null
 
   # GPU configuration
   use_cuda: true
   gpu_id: 0
 
+  # Optional: Path for loading pre-trained model weights
+  # load_path:
+  # load_stats:
   # Path for saving model and performance data
   save_path: "/tmp2/pfe/model/celeba_39_male"
 
 dataset:
   name: 'celeba'
+  type: 'binary' # 'binary' or 'multi-class'
   selected_attrs:
     - 5_o_Clock_Shadow
     - Arched_Eyebrows
@@ -54,5 +60,4 @@ dataset:
     - Wearing_Necklace
     - Wearing_Necktie
     - Young 
-
   protected_attr: 'Male'

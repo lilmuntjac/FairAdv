@@ -1,27 +1,71 @@
+import os
 import yaml
 
 import torch
 
-from .data_loader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
+from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
+from dataloaders.dataloader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
                           create_fairface_data_loaders, create_fairface_xform_data_loaders,
                           create_ham10000_data_loaders)
-from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
+from training.train_generic import GenericTrainer
+from training.train_pattern import FairPatternTrainer
+from training.train_mfd import MFDTrainer
 
 def load_config(config_path):
     """ Load YAML configuration file. """
     with open(config_path, 'r') as file:
         return yaml.safe_load(file)
-    
-def set_seed(seed):
-    """ Set the seed for reproducibility in PyTorch and CUDA environments. """
+
+def config_env(config):
+    """ Configures the device for PyTorch and initializes random seeds. """
+    print(f"PyTorch Version: {torch.__version__}")
+
+    # Set the CUDA devices based on the configuration.
+    use_cuda = config['training'].get('use_cuda', False)
+    gpu_id = config['training'].get('gpu_id', 0)
+    gpu_setting = ",".join(map(str, gpu_id)) if isinstance(gpu_id, list) else str(gpu_id)
+    os.environ["CUDA_VISIBLE_DEVICES"] = gpu_setting
+
+    # Check if CUDA is available after setting CUDA_VISIBLE_DEVICES.
+    if use_cuda and not torch.cuda.is_available():
+        raise RuntimeError("CUDA requested but not available.")
+    elif use_cuda:
+        if isinstance(gpu_id, list):
+            print(f"Using CUDA devices: GPUs {gpu_setting}")
+        else:
+            print(f"Using CUDA device: GPU {gpu_setting}")
+    else:
+        print("Using CPU for computations.")
+
+    # Set the computation device based on CUDA availability.
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Initialize random seeds for PyTorch to ensure reproducibility.
+    seed = config['training'].get('random_seed', 2665)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
 
+    return device
+
+def select_model(config):
+    if config['dataset']['name'] in ['celeba', 'fairface']:
+        model = BinaryModel(len(config['dataset']['selected_attrs']))
+        criterion = nn.BCELoss()
+    elif config['dataset']['name'] == 'ham10000':
+        class_num = config['dataset']['class_number']
+        model = MulticlassModel(class_num)
+        criterion = nn.CrossEntropyLoss()
+    else:
+        raise ValueError(f"Invalid dataset name: {config['dataset']['name']}")
+    return model, criterion
+
 def select_data_loader(config):
     dataset_name = config['dataset']['name']
     pattern_type = config.get('attack', {}).get('pattern_type', 'perturbation')
+    training_method = config.get('training', {}).get('method', 'generic')
 
+    # Loader function with or without a transformation matrix.
     if pattern_type == 'eyeglasses':
         if dataset_name == 'celeba':
             loader_function = create_celeba_xform_data_loaders
@@ -41,11 +85,30 @@ def select_data_loader(config):
             return train_loader, val_loader
         else:
             raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
-    train_loader, val_loader = loader_function(
-        selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
-        batch_size=config['training']['batch_size']
-    )
+    # Configure the dataloader based on the training method. 
+    if training_method == 'generic': 
+        train_loader, val_loader = loader_function(
+            selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
+            batch_size=config['training']['batch_size']
+        )
+    elif training_method == 'mfd':
+        train_loader, val_loader = loader_function(
+            selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
+            batch_size=config['training']['batch_size'],
+            sampler='balanced_batch_sampler' # BalancedBatchSampler
+        )
     return train_loader, val_loader
+
+def select_trainer(config):
+    trainer_type = config['training'].get('method')
+    if trainer_type == 'generic':
+        return GenericTrainer
+    elif trainer_type == 'pattern':
+        return FairPatternTrainer
+    elif trainer_type =='mfd':
+        return MFDTrainer
+    else:
+        raise ValueError(f"Invalid trainer method specified in config: {trainer_type}")
 
 def select_applier(config, pattern=None, device='cpu'):
     pattern_type = config['attack']['pattern_type']

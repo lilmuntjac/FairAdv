@@ -1,0 +1,36 @@
+training:
+  method: pattern
+  # Basic training parameters
+  batch_size: 128
+  final_epoch: 2
+  random_seed: 2665
+  scheduler: null
+
+  # GPU configuration
+  use_cuda: true
+  gpu_id: 1
+
+  # Warning: Loading an existing pattern path in base_path, not synchronizing statistical data. 
+  # Using the same folder will lead to overwriting.
+  save_path: "/tmp2/pfe/pert/celeba_attractive_male"
+
+model: # pre-trained model that we want to alter
+  num_attributes: 1  # Number of attributes for BinaryModel
+  model_path: "/tmp2/pfe/model/celeba_attractive_male/checkpoint_epoch_0025.pth"
+
+attack:
+  pattern_type: perturbation
+  method: direct
+  alpha: 0.01      # Step size per attack iteration
+  iters: 1         # Number of attack iterations
+  base_path: null  # existing pattern's path
+
+  epsilon: 0.063        # used if parttern is perturbation
+  frame_thickness: 0.05 # used if parttern is frame
+
+dataset:
+  name: 'celeba'
+  type: 'binary' # 'binary' or 'multi-class'
+  selected_attrs:
+    - Attractive
+  protected_attr: 'Male'

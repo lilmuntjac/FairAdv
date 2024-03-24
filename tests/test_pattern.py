@@ -13,7 +13,7 @@ sys.path.append(str(project_root))
 import torch
 
 import utils.utils as utils
-from models.binary_model import BinaryModel
+from utils.model_utils import setup_model_and_optimizer, load_checkpoint_and_stats
 
 def validation(model, images, labels, applier):
     perturbed_images = applier.apply(images)
@@ -52,24 +52,13 @@ def validate_adversarial(model, val_loader, applier, device, attr_list):
 
 def main(config):
     setup_start = time.perf_counter()
-    print(f"PyTorch Version: {torch.__version__}")
-
-    if config['training']['use_cuda']:
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(config['training']['gpu_id'])
-        if not torch.cuda.is_available():
-            raise RuntimeError("CUDA is not available, but 'use_cuda' is set to True in the configuration.")
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    utils.set_seed(config['training']['random_seed'])
+    
+    device = utils.config_env(config)
 
     # Setup model
-    num_attributes = config['model']['num_attributes']
-    model_path = config['model']['model_path']
-    model = BinaryModel(num_attributes).to(device)
-    model.load_state_dict(torch.load(model_path))
+    model, criterion, optimizer, scheduler = setup_model_and_optimizer(config, device)
     model.eval()
+    (_, _, _) = load_checkpoint_and_stats(config, model, optimizer, scheduler, device)
 
     # Setup data loader based on attack pattern
     train_loader, val_loader = utils.select_data_loader(config)

@@ -1,20 +1,25 @@
 training:
+  method: generic
   # Basic training parameters
   batch_size: 64
-  num_epochs: 30
+  final_epoch: 30
   learning_rate: 0.001
   random_seed: 2665
+  scheduler: null
 
   # GPU configuration
   use_cuda: true
-  gpu_id: 1
+  gpu_id: 4
 
+  # Optional: Path for loading pre-trained model weights
+  # load_path:
+  # load_stats:
   # Path for saving model and performance data
   save_path: "/tmp2/pfe/model/celeba_bignoise_male"
 
 dataset:
   name: 'celeba'
+  type: 'binary' # 'binary' or 'multi-class'
   selected_attrs:
     - Big_Nose
-    
   protected_attr: 'Male'

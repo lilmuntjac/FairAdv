@@ -1,19 +1,25 @@
 training:
+  method: generic
   # Basic training parameters
   batch_size: 64
-  num_epochs: 2
+  final_epoch: 2
   learning_rate: 0.001
   random_seed: 2665
+  scheduler: null
 
   # GPU configuration
   use_cuda: true
   gpu_id: 5
 
+  # Optional: Path for loading pre-trained model weights
+  # load_path:
+  # load_stats:
   # Path for saving model and performance data
-  save_path: "/tmp2/npe/model/ham10000_test"
+  save_path: "/tmp2/pfe/model/ham10000_test"
 
 dataset:
   name: 'ham10000'
+  type: 'multi-class' # 'binary' or 'multi-class'
   class_number: 7
   
   selected_attr: 'diagnosis'

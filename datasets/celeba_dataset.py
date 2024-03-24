@@ -5,9 +5,11 @@ import pandas as pd
 from torch.utils.data import Dataset
 
 class CelebADataset(Dataset):
-    """Custom Dataset for loading CelebA dataset images and selected attributes."""
+    """Custom Dataset for loading CelebA dataset images and selected attributes,
+    and optionally returning subgroup info."""
 
-    def __init__(self, attr_file, partition_file, img_dir, partition_type, selected_attrs=None, transform=None):
+    def __init__(self, attr_file, partition_file, img_dir, partition_type, 
+                 selected_attrs=None, transform=None, return_subgroups=False):
         """
         Args:
             attr_file (string): Path to the file with annotations (attributes).
@@ -16,9 +18,12 @@ class CelebADataset(Dataset):
             partition_type (int): Type of dataset partition (0: Train, 1: Val, 2: Test).
             selected_attrs (list of str): List of attribute names to be included.
             transform (callable, optional): Optional transform to be applied on a sample.
+            return_subgroups (bool, optional): If True, returns subgroup information
+                                               along with images and attributes.
         """
         self.img_dir = Path(img_dir)
         self.transform = transform
+        self.return_subgroups = return_subgroups
 
         # Read the attributes file
         with open(attr_file, 'r') as f:
@@ -42,6 +47,16 @@ class CelebADataset(Dataset):
         else:
             self.selected_attrs = attr_names
 
+        # Compute and add subgroup information based on selected attributes
+        if return_subgroups:
+            self.data['subgroup'] = self.data.apply(
+                lambda row: self.compute_subgroup(row), axis=1)
+
+    def compute_subgroup(self, row):
+        """Computes the subgroup for a given row based on selected attributes."""
+        # ((row[attr] + 1) // 2) normalizes the attribute values from -1 and 1 to 0 and 1
+        return tuple(((row[attr] + 1) // 2) for attr in self.selected_attrs)
+
     def __len__(self):
         return len(self.data)
 
@@ -58,7 +73,11 @@ class CelebADataset(Dataset):
         attributes = (attributes.astype('int') + 1) // 2
         attributes = attributes.astype('float32')
 
-        return image, attributes
+        if self.return_subgroups:
+            subgroup = self.data.iloc[idx]['subgroup']
+            return image, attributes, subgroup
+        else:
+            return image, attributes
 
 
 # import matplotlib.pyplot as plt
