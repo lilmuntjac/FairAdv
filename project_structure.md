@@ -51,6 +51,11 @@ FairAdv/
 ├── models/
 │   ├── binary_model.py
 │   └── multiclass_model.py
+|
+├── training/
+│   ├── train_generic.py
+│   ├── train_mfd.py
+│   └── train_pattern.py
 │
 ├── tests/
 │   ├── test_appliers.py
