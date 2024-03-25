@@ -28,7 +28,8 @@ def config_env(config):
 
     # Check if CUDA is available after setting CUDA_VISIBLE_DEVICES.
     if use_cuda and not torch.cuda.is_available():
-        raise RuntimeError("CUDA requested but not available.")
+        print(f"GPU setting: {gpu_setting}")
+        raise RuntimeError("CUDA requested but not available. Please check your GPU settings.")
     elif use_cuda:
         if isinstance(gpu_id, list):
             print(f"Using CUDA devices: GPUs {gpu_setting}")
