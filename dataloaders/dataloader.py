@@ -31,6 +31,10 @@ def create_celeba_data_loaders(
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
     return_subgroups = False
+    # Record the time taken when there is a sampler.
+    if sampler:
+        print(f"  Detected the use of a sampler, this may require additional time")
+        start_time = time.perf_counter()
     if sampler in ['balanced_batch_sampler', ]:
         return_subgroups = True
     train_transform = get_transforms(augment=True)
@@ -70,6 +74,11 @@ def create_celeba_data_loaders(
         val_dataset, batch_size=batch_size, shuffle=False,
         num_workers=16, pin_memory=True, drop_last=False
     )
+    if sampler: # Print the time passed when using a sampler
+        total_time = time.perf_counter() - start_time
+        msg = (f"  Time to create Dataloader with custom sampler: {total_time:.2f} seconds "
+               f"({total_time / 60:.2f} minutes)")
+        print(msg)
     return train_loader, val_loader
 
 def create_celeba_xform_data_loaders(
