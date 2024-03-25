@@ -2,11 +2,11 @@ import time
 
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from datasets.celeba_dataset import CelebADataset
-from datasets.celeba_xform_dataset import CelebAXformDataset
-from datasets.fairface_dataset import FairFaceDataset
-from datasets.fairface_xform_dataset import FairFaceXformDataset
-from datasets.ham10000_dataset import HAM10000Dataset
+from data.datasets.celeba_dataset import CelebADataset
+from data.datasets.celeba_xform_dataset import CelebAXformDataset
+from data.datasets.fairface_dataset import FairFaceDataset
+from data.datasets.fairface_xform_dataset import FairFaceXformDataset
+from data.datasets.ham10000_dataset import HAM10000Dataset
 from .samplers import BalancedBatchSampler
 
 def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):

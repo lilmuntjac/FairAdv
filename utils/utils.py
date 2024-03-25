@@ -4,9 +4,9 @@ import yaml
 import torch
 
 from adversarial import PerturbationApplier, FrameApplier, EyeglassesApplier
-from dataloaders.dataloader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
-                          create_fairface_data_loaders, create_fairface_xform_data_loaders,
-                          create_ham10000_data_loaders)
+from data.loaders.dataloader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
+                                     create_fairface_data_loaders, create_fairface_xform_data_loaders,
+                                     create_ham10000_data_loaders)
 from training.train_generic import GenericTrainer
 from training.train_pattern import FairPatternTrainer
 from training.train_mfd import MFDTrainer
