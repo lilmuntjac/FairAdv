@@ -49,18 +49,6 @@ def config_env(config):
 
     return device
 
-def select_model(config):
-    if config['dataset']['name'] in ['celeba', 'fairface']:
-        model = BinaryModel(len(config['dataset']['selected_attrs']))
-        criterion = nn.BCELoss()
-    elif config['dataset']['name'] == 'ham10000':
-        class_num = config['dataset']['class_number']
-        model = MulticlassModel(class_num)
-        criterion = nn.CrossEntropyLoss()
-    else:
-        raise ValueError(f"Invalid dataset name: {config['dataset']['name']}")
-    return model, criterion
-
 def select_data_loader(config):
     dataset_name = config['dataset']['name']
     pattern_type = config.get('attack', {}).get('pattern_type', 'perturbation')
@@ -86,13 +74,16 @@ def select_data_loader(config):
             return train_loader, val_loader
         else:
             raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
+    
+    normal_method = ['generic', ]
+    balanced_method = ['mfd', 'pattern']
     # Configure the dataloader based on the training method. 
-    if training_method == 'generic': 
+    if training_method in normal_method: 
         train_loader, val_loader = loader_function(
             selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
             batch_size=config['training']['batch_size']
         )
-    elif training_method == 'mfd':
+    elif training_method in balanced_method:
         train_loader, val_loader = loader_function(
             selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
             batch_size=config['training']['batch_size'],
