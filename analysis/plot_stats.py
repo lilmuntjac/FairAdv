@@ -75,22 +75,34 @@ def calculate_multiclass_model_metrics(stats):
     return metrics
 
 def plot_data(train_metrics, val_metrics, epoch_range, metric_key):
+    marker_style_train = 'o'
+    marker_style_val = 's'
     # Check the metric key and plot accordingly
     # Adjust or extend this logic based on the metrics you need to plot
     if metric_key == 'accuracy':
-        plt.plot(epoch_range, train_metrics['total_accuracies'], label=f'Train Total Accuracy')
-        plt.plot(epoch_range, val_metrics['total_accuracies'], '--', label=f'Validation Total Accuracy')
+        plt.plot(epoch_range, train_metrics['total_accuracies'], 
+                 label=f'Train Total Accuracy', marker=marker_style_train)
+        plt.plot(epoch_range, val_metrics['total_accuracies'], '--', 
+                 label=f'Validation Total Accuracy', marker=marker_style_val)
     elif metric_key == 'group_accuracy':
-        plt.plot(epoch_range, train_metrics['group1_accuracies'], label=f'Train Group 1 Accuracy')
-        plt.plot(epoch_range, train_metrics['group2_accuracies'], label=f'Train Group 2 Accuracy')
-        plt.plot(epoch_range, val_metrics['group1_accuracies'], '--', label=f'Validation Group 1 Accuracy')
-        plt.plot(epoch_range, val_metrics['group2_accuracies'], '--', label=f'Validation Group 2 Accuracy')
+        plt.plot(epoch_range, train_metrics['group1_accuracies'], 
+                 label=f'Train Group 1 Accuracy', marker=marker_style_train)
+        plt.plot(epoch_range, train_metrics['group2_accuracies'], 
+                 label=f'Train Group 2 Accuracy', marker=marker_style_train)
+        plt.plot(epoch_range, val_metrics['group1_accuracies'], '--', 
+                 label=f'Validation Group 1 Accuracy', marker=marker_style_val)
+        plt.plot(epoch_range, val_metrics['group2_accuracies'], '--', 
+                 label=f'Validation Group 2 Accuracy', marker=marker_style_val)
     elif metric_key == 'equalized_odds':
-        plt.plot(epoch_range, train_metrics['equalized_odds_list'], label=f'Train Equalized Odds')
-        plt.plot(epoch_range, val_metrics['equalized_odds_list'], label=f'Validation Equalized Odds')
+        plt.plot(epoch_range, train_metrics['equalized_odds_list'], 
+                 label=f'Train Equalized Odds', marker=marker_style_train)
+        plt.plot(epoch_range, val_metrics['equalized_odds_list'], 
+                 label=f'Validation Equalized Odds', marker=marker_style_val)
     elif metric_key == 'equalized_accuracy':
-        plt.plot(epoch_range, train_metrics['differences_acc_list'], label=f'Train Equalized Accuracy')
-        plt.plot(epoch_range, val_metrics['differences_acc_list'], label=f'Validation Equalized Accuracy')
+        plt.plot(epoch_range, train_metrics['differences_acc_list'], 
+                 label=f'Train Equalized Accuracy', marker=marker_style_train)
+        plt.plot(epoch_range, val_metrics['differences_acc_list'], 
+                 label=f'Validation Equalized Accuracy', marker=marker_style_val)
     else:
         raise NotImplementedError(f"Plotting for metric_key '{metric_key}' is not implemented.")
             
