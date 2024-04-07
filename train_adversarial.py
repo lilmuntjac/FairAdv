@@ -113,7 +113,7 @@ def main(config):
     # Setup model
     num_attributes = config['model']['num_attributes']
     model_path = config['model']['model_path']
-    model = utils.select_model(config).to(sevice)
+    model = utils.select_model(config).to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
