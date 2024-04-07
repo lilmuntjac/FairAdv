@@ -54,9 +54,25 @@ class PerturbationApplier:
             epsilon (float): Maximum allowable perturbation size.
         """
         with torch.no_grad():
-            self.perturbation += alpha * self.perturbation.grad.sign()
+            self.perturbation -= alpha * self.perturbation.grad.sign()
             self.perturbation.clamp_(-epsilon, epsilon)
             self.perturbation.grad.zero_()
+
+    def clear_gradient(self):
+        """
+        Resets the current gradients if they exist.
+        """
+        if self.perturbation.grad is not None:
+            self.perturbation.grad.zero_()
+
+    def get_gradient(self):
+        """
+        Retrieves the gradient of the pattern if it exists.
+        """
+        if self.perturbation.grad is not None:
+            return self.perturbation.grad
+        else:
+            return None
 
     def get(self):
         """
