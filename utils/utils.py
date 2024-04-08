@@ -110,12 +110,12 @@ def select_applier(config, pattern=None, device='cpu'):
 
     # Create or use the provided pattern
     if pattern is None and not base_path:
-        random_tensor = torch.rand((1, 3, 224, 224)) * 2 - 1
+        random_tensor = torch.rand((1, 3, 224, 224))
         if pattern_type == 'perturbation':
             pattern = random_tensor * 2 - 1
-            pattern = pattern.clamp_(-epsilon, epsilon)
+            pattern = pattern.clamp_(-0.00392, 0.00392) # single pixel value
         elif pattern_type in ['frame', 'eyeglasses']:
-            pattern = random_tensor
+            pattern = random_tensor.clamp_(0, 0.00392)
 
     # Select and return the appropriate applier
     if pattern_type == 'perturbation':
