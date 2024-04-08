@@ -47,7 +47,7 @@ def initialize_stats_tensors(config):
         raise ValueError(f"Invalid dataset type: {config['dataset']['type']}")
     return train_epoch_stats_count, val_epoch_stats_count
 
-def load_checkpoint_and_stats(config, model, optimizer, scheduler, device):
+def setup_training_environment(config, model, optimizer, scheduler, device):
     """ Load the model checkpoint and stats if specified in the config. """
     passed_epoch = 0
     if 'load_path' in config['training'] and config['training']['load_path']:
@@ -60,7 +60,9 @@ def load_checkpoint_and_stats(config, model, optimizer, scheduler, device):
         if scheduler and 'scheduler_state_dict' in checkpoint:
             scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
         passed_epoch = checkpoint['epoch']
-        print(f"Resuming training from epoch {passed_epoch + 1}")
+        print(f"Loaded checkpoint for setup. Resuming from epoch {passed_epoch + 1}.")
+    else:
+        print("Initializing environment for a new training session.")
     
     train_epoch_stats_count, val_epoch_stats_count = initialize_stats_tensors(config)
     if 'load_stats' in config['training'] and config['training']['load_stats']:

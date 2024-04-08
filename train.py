@@ -5,7 +5,7 @@ import numpy as np
 from pathlib import Path
 
 import utils.utils as utils
-from utils.model_utils import setup_model_and_optimizer, load_checkpoint_and_stats
+from utils.model_utils import setup_model_and_optimizer, setup_training_environment
 
 def main(config):
     setup_start = time.perf_counter()
@@ -14,11 +14,14 @@ def main(config):
 
     device = utils.config_env(config)
 
+    # Set up the class of the model and other components.
+    # Load checkpoints and stats if resuming the model training; otherwise, initialize the stats.
+    # If it's not for training the model, please load the pre-trained model elsewhere.
     model, criterion, optimizer, scheduler = setup_model_and_optimizer(config, device)
     (passed_epoch, total_train_stats, 
-     total_val_stats) = load_checkpoint_and_stats(config, model, optimizer, scheduler, device)
+     total_val_stats) = setup_training_environment(config, model, optimizer, scheduler, device)
 
-    # Setup data loader based on attack pattern
+    # Set up the data loader based on the different training types.
     train_loader, val_loader = utils.select_data_loader(config)
     setup_end = time.perf_counter()
     print(f"Setup Time: {setup_end - setup_start:.4f} seconds")
