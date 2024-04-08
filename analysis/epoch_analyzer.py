@@ -79,6 +79,10 @@ def main(config):
         best_epoch, best_score, scores = None, -2, []
         if start_from_0: # contain the initial stats
             initial_status = compute_epoch_stats(val_stats, stats_type, 0, attr_index)
+            print(f"Epoch 0:")
+            for key in initial_status:
+                print(f'{key}: {initial_status[key].item():.4f}')
+            print('')
         else:
             initial_status = config['initial_status'].get(attr_name, {})
 
