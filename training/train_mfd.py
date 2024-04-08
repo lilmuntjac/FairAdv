@@ -120,7 +120,7 @@ class MFDTrainer:
         return avg_loss, total_stats
 
     def run(self, start_epoch, final_epoch, total_train_stats, total_val_stats):
-        if start_epoch >= final_epoch:
+        if start_epoch > final_epoch:
             print("Start epoch must be less than final epoch.")
             return
         total_start_time = time.perf_counter()
