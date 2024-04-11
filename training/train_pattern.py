@@ -4,7 +4,7 @@ from pathlib import Path
 import torch
 
 import utils.utils as utils
-from adversarial.losses import BinaryDirectLoss, BinaryPerturbedLoss
+from adversarial.losses import BinaryDirectLoss, BinaryMaskingLoss, BinaryPerturbedLoss
 
 class FairPatternTrainer:
     def __init__(self, config, train_loader, val_loader, 
@@ -18,6 +18,8 @@ class FairPatternTrainer:
         self.criterion = criterion # unused
         self.optimizer = optimizer
         self.scheduler = scheduler
+        self.save_path = Path(save_path) # Ensure it's a Path object
+        self.device = device
         # applier that applies pattern onto the image
         self.applier = utils.select_applier(config, device=device)
         self.attack_params = {
@@ -28,10 +30,19 @@ class FairPatternTrainer:
             'epsilon': config['attack'].get('epsilon', 0), # for perturbation
             'gamma': config['attack'].get('gamma', 0),     # balancing fairness and accuracy
             'gamma_adjust_factor': config['attack'].get('gamma_adjust_factor', 0),
+            'ratio_history': [],
+            'ratio_history_length': 10,
         }
+        self.load_pretrained_weight(config)
         self.get_fairness_loss(config)
-        self.save_path = Path(save_path) # Ensure it's a Path object
-        self.device = device
+
+    def load_pretrained_weight(self, config):
+        # load pre-trained model weights
+        model_path = Path(config['model']['model_path'])
+        if not model_path.exists():
+            raise FileNotFoundError(f"The pre-trained model weight file does not exist: {model_path}")
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
 
     def get_fairness_loss(self, config):
         model_type = config['dataset'].get('type', 'binary')
@@ -40,6 +51,8 @@ class FairPatternTrainer:
         match (model_type, loss_type):
             case ('binary', 'direct'):
                 self.fairness_loss = BinaryDirectLoss(fairness_criteria=fairness_criteria)
+            case ('binary', 'masking'):
+                self.fairness_loss = BinaryMaskingLoss(fairness_criteria=fairness_criteria)
             case ('binary', 'perturbed'):
                 self.fairness_loss = BinaryPerturbedLoss(fairness_criteria=fairness_criteria)
             case _:
@@ -77,20 +90,32 @@ class FairPatternTrainer:
             fairness_grad (torch.Tensor): Gradient of the fairness loss.
             accuracy_grad (torch.Tensor): Gradient of the accuracy loss.
         """
-        threshold_ratio, min_gamma, max_gamma = 2.5, 0, 100
+        threshold_ratio, min_gamma, max_gamma = 3.0, 0, 100
         fairness_grad_norm = fairness_grad.norm()
         accuracy_grad_norm = accuracy_grad.norm()
 
+        # 
+        # fairness_grad_flat = fairness_grad.view(-1)
+        # accuracy_grad_flat = accuracy_grad.view(-1)
+        # cosine_similarity = torch.dot(fairness_grad_flat, accuracy_grad_flat) / (fairness_grad_norm * accuracy_grad_norm)
+
         # Adjust gamma based on the ratio of gradient norms
         if fairness_grad_norm > 0 and accuracy_grad_norm > 0:
-            ratio = accuracy_grad_norm / fairness_grad_norm
-            if ratio > threshold_ratio:
+            current_ratio  = accuracy_grad_norm / fairness_grad_norm
+
+            # Update the ratio history
+            self.attack_params['ratio_history'].append(current_ratio)
+            if len(self.attack_params['ratio_history']) > self.attack_params['ratio_history_length']:
+                self.attack_params['ratio_history'].pop(0)  # Remove the oldest ratio to maintain the defined history length
+            avg_ratio = sum(self.attack_params['ratio_history']) / len(self.attack_params['ratio_history'])
+
+            if avg_ratio > threshold_ratio:
                 self.attack_params['gamma'] += self.attack_params['gamma_adjust_factor']
             else:
                 self.attack_params['gamma'] -= self.attack_params['gamma_adjust_factor']
             self.attack_params['gamma'] = min(max_gamma, max(min_gamma, self.attack_params['gamma']))
-            print(f'fairness: {fairness_grad_norm:.4f} / accuracy: {accuracy_grad_norm:.4f}')
-            print(f"Ratio: {ratio:.4f} Adjusted gamma: {self.attack_params['gamma']}")
+            # print(f'fairness: {fairness_grad_norm:.4f} / accuracy: {accuracy_grad_norm:.4f} / sim: {cosine_similarity:.4f}')
+            # print(f"Ratio: {avg_ratio:.4f} Adjusted gamma: {self.attack_params['gamma']:.4f}")
 
     def embed_pattern(self, batch):
         pattern_type = self.attack_params['pattern_type']
@@ -116,7 +141,7 @@ class FairPatternTrainer:
 
             # Calculate losses
             fairness_loss = self.fairness_loss.compute_loss(outputs, labels)
-            accuracy_loss = self.fairness_loss.compute_generic_loss(outputs, labels)
+            accuracy_loss = self.fairness_loss.compute_utlity_loss(outputs, labels)
 
             # Get the gradients from both losses
             self.applier.clear_gradient()
@@ -160,7 +185,7 @@ class FairPatternTrainer:
         return avg_loss, total_stats
 
     def run(self, start_epoch, final_epoch, total_train_stats, total_val_stats):
-        if start_epoch >= final_epoch:
+        if start_epoch > final_epoch:
             print("Start epoch must be less than final epoch.")
             return
         total_start_time = time.perf_counter()
@@ -170,6 +195,9 @@ class FairPatternTrainer:
             _, init_val_stats   = self.validate_epoch(use_trainloader=False)
             total_train_stats = torch.cat((total_train_stats, init_train_stats.unsqueeze(0)), dim=0)
             total_val_stats   = torch.cat((total_val_stats,   init_val_stats.unsqueeze(0)), dim=0)
+            print(f'Load model with the stats:')
+            self.show_stats(init_train_stats, init_val_stats)
+
         for epoch in range(start_epoch, final_epoch + 1):
             epoch_start_time = time.perf_counter()
             train_loss, train_stats = self.train_epoch()
