@@ -89,7 +89,7 @@ def main(config):
         for epoch_index in range(val_stats.shape[0]):
             current_status = compute_epoch_stats(val_stats, stats_type, epoch_index, attr_index)
             # Calculate score
-            accuracy_loss = current_status['total_accuracy'] - initial_status['total_accuracy']
+            accuracy_loss = initial_status['total_accuracy'] - current_status['total_accuracy']
             if stats_type == 'binary':
                 fairness_gain = initial_status.get('equalized_odds', 0) - current_status.get('equalized_odds', 0)
             elif stats_type == 'mult-class':
