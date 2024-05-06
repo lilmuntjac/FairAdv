@@ -5,7 +5,13 @@ FairAdv/
 │
 ├── adversarial/
 │   ├── losses/
-│   │   ├── direct_loss.py
+│   │   ├── __init__.py
+│   │   ├── binary_base.py
+│   │   ├── binary_combinedloss.py
+│   │   ├── constraint.py
+│   │   ├── equimask.py
+│   │   ├── multiclass_base.py
+│   │   ├── perturbed_optimizer.py
 │   │   └── ... (other loss files)
 │   ├── masks/
 │   │   └── eyeglasses_mask_6percent.png
@@ -14,7 +20,9 @@ FairAdv/
 │   └── eyeglasses_applier.py
 │
 ├── analysis/
-│   └── conf_matrix_dist.py
+│   ├── conf_matrix_dist.py # deprecated
+│   ├── epoch_analyzer.py
+│   └── plot_stats.py
 │
 ├── config/ 
 │   ├── fairness_attack
@@ -35,37 +43,38 @@ FairAdv/
 │   └── testing
 │       ├── celeba_39m_cm.yml
 │       ├── celeba_applier.yml
-│       └── celeba_pattern_tester.yml
+│       ├── celeba_pattern_tester.yml
+│       └── celeba_stats.yml
 │
-├── dataloaders/
-│   ├── dataloader.py
-│   └── samplers.py
-│
-├── datasets/
-│   ├── celeba_dataset.py
-│   ├── celeba_xform_dataset.py
-│   ├── fairface_dataset.py
-│   ├── fairface_xform_dataset.py
-│   └── ham10000_dataset.py
+├── data
+│   ├── datasets
+│   │   ├── celeba_dataset.py
+│   │   ├── celeba_xform_dataset.py
+│   │   ├── fairface_dataset.py
+│   │   ├── fairface_xform_dataset.py
+│   │   └── ham10000_dataset.py
+│   └── loaders
+│       ├── dataloader.py
+│       └── samplers.py
 │
 ├── models/
-│   ├── binary_model.py
-│   └── multiclass_model.py
-|
+│   └── generic_model.py
+│
+├── tests/
+│   ├── test_checkpoint.py
+│   └── test_pattern_stats.py
+│
 ├── training/
+│   ├── train_fscl_supcon.py
 │   ├── train_generic.py
 │   ├── train_mfd.py
 │   └── train_pattern.py
 │
-├── tests/
-│   ├── test_appliers.py
-│   └── test_pattern.py
-│
 ├── utils/
-│   ├── model_utils.py
-│   └── utils.py
+│   ├── config_utils.py
+│   ├── metrics_utils.py
+│   └── training_utils.py
 │
-├── train.py
-├── train_adversarial.py # deprecated
-└── requirements.txt
+├── requirements.txt
+└── train.py
 ```

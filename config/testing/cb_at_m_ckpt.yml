@@ -1,0 +1,22 @@
+unit_test:
+  epoch: 8 # the epoch being tested; if not provided, the epoch number will be retrieved from the checkpoint filename
+  load_path: "/tmp2/pfe/model/cb_at_m_b64/checkpoint_epoch_0008.pth"
+  load_stats: "/tmp2/pfe/model/cb_at_m_b64/stats_end_0030.pt"
+
+  # Basic model & environment parameters
+  batch_size: 128
+  random_seed: 2665
+  use_cuda: true
+  gpu_setting: '0' # A string that is passed as an environment variable
+
+# Provides dataset information to correctly load the appropriate dataloader
+dataset:
+  training_schema: generic # defines how the dataset is loaded
+  name: 'celeba' # name of the dataset
+  type: 'binary' # 'binary' or 'multi-class'; determines which fairness metrics are available
+  balanced: false
+  selected_attrs:
+    - Attractive
+  protected_attr: 'Male'
+  task_name: 'Attractive'
+  num_subgroups: 2

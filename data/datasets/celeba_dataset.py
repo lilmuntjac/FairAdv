@@ -71,7 +71,6 @@ class CelebADataset(Dataset):
         # Extract and map selected attributes
         attributes = self.data.iloc[idx][self.selected_attrs].to_numpy()
         attributes = (attributes.astype('int') + 1) // 2
-        attributes = attributes.astype('float32')
 
         if self.return_subgroups:
             subgroup = self.data.iloc[idx]['subgroup']

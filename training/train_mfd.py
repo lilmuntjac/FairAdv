@@ -4,7 +4,10 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 
-import utils.utils as utils
+from utils.metrics_utils import (
+    normalize, get_confusion_matrix_counts, get_rights_and_wrongs_counts, 
+    print_binary_model_summary, print_multiclass_model_summary
+)
 
 class MFDTrainer:
     def __init__(self, config, train_loader, val_loader, 
@@ -13,8 +16,7 @@ class MFDTrainer:
         self.val_loader = val_loader
         self.model = model.to(device)
         self.model_type = config['dataset']['type']
-        self.attr_list = config['dataset'].get('selected_attrs', [])
-        self.attr_name = config['dataset'].get('selected_attr', 'unspecified')
+        self.task_name = config['dataset'].get('task_name', 'unspecified')
         self.criterion = criterion
         self.optimizer = optimizer
         self.scheduler = scheduler
@@ -27,8 +29,8 @@ class MFDTrainer:
 
     def get_teacher_model(self, config):
         # Infer the number of output features/classes from self.model's final layer
-        if hasattr(self.model, 'fc'):  # Assuming the final layer is named 'fc'
-            num_outputs = self.model.fc.out_features
+        if hasattr(self.model, 'classification_head'):  # Assuming the final layer is named 'fc'
+            num_outputs = self.model.classification_head.out_features
         else:
             raise AttributeError("Fail to get output dimension from self.model")
         
@@ -43,32 +45,21 @@ class MFDTrainer:
         teacher_model.load_state_dict(checkpoint['model_state_dict'])
         return teacher_model
 
-    # the original model training loss
-    def compute_loss(self, outputs, labels):
-        if self.model_type == 'binary':
-            loss = self.criterion(outputs, labels[:, :-1])
-        elif self.model_type == 'multi-class':
-            loss = self.criterion(outputs, labels[:, :-1].squeeze(1))
-        else:
-            raise ValueError(f"Invalid dataset type: {self.model_type}")
-        return loss
-
     def compute_stats(self, outputs, labels):
+        _, predicted = torch.max(outputs, 1)
         if self.model_type == 'binary':
-            predicted = (outputs > 0.5).float()
-            stats = utils.get_confusion_matrix_counts(predicted, labels)
+            stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
-            _, predicted = torch.max(outputs, 1)
-            stats = utils.get_rights_and_wrongs_counts(predicted, labels)
+            stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
         return stats
-
+    
     def show_stats(self, train_stats, val_stats):
         if self.model_type == 'binary':
-            utils.print_binary_model_summary(train_stats, val_stats, self.attr_list)
+            print_binary_model_summary(train_stats, val_stats, self.task_name)
         elif self.model_type == 'multi-class':
-            utils.print_multiclass_model_summary(train_stats, val_stats, self.attr_name)
+            print_multiclass_model_summary(train_stats, val_stats, self.task_name)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
 
@@ -78,11 +69,11 @@ class MFDTrainer:
         total_loss, total_stats = 0, None
         for batch_idx, (images, labels, subgroups) in enumerate(self.train_loader):
             images, labels = images.to(self.device), labels.to(self.device)
-            images = utils.normalize(images)
+            images = normalize(images)
             # the original model training loss
             self.optimizer.zero_grad()
             outputs, student_feature = self.model(images, get_feature=True)
-            generic_loss = self.compute_loss(outputs, labels)
+            generic_loss = loss = self.criterion(outputs, labels[:,0])
             # MMD loss
             _, teacher_feature = self.teacher(images, get_feature=True)
             mmd_loss = self.mmd_criterion(teacher_feature, student_feature, subgroups)
@@ -104,10 +95,10 @@ class MFDTrainer:
         with torch.no_grad():
             for batch_idx, (images, labels) in enumerate(self.val_loader):
                 images, labels = images.to(self.device), labels.to(self.device)
-                images = utils.normalize(images)
+                images = normalize(images)
                 # the original model training loss
                 outputs, student_feature = self.model(images, get_feature=True)
-                # generic_loss = self.compute_loss(outputs, labels)
+                # generic_loss = loss = self.criterion(outputs, labels[:,0])
                 # MMD loss
                 # _, teacher_feature = self.teacher(images, get_feature=True)
                 # mmd_loss = self.mmd_criterion(teacher_feature, student_feature, subgroups)

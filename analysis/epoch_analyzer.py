@@ -11,11 +11,11 @@ sys.path.append(str(project_root))
 
 import torch
 
-import utils.utils as utils
+from utils.config_utils import load_config
 
-def compute_epoch_stats(stats, stats_type, epoch_index, attr_index=0):
+def compute_epoch_stats(stats, stats_type, epoch_index):
     if stats_type == 'binary':
-        epoch_stats = stats[epoch_index, attr_index, :, :]
+        epoch_stats = stats[epoch_index, :, :]
         TP1, FP1, FN1, TN1 = epoch_stats[0, :]
         TP2, FP2, FN2, TN2 = epoch_stats[1, :]
         # Accuracies
@@ -67,47 +67,38 @@ def main(config):
     # Load the statistics
     stats_file_path = config['analysis']['stats_file_path']
     stats_type = config['analysis']['type']
-    attr_names = config['analysis'].get('attributes', 'unspecified')
-    stat =  torch.load(stats_file_path)
-    final_epoch, _, val_stats = stat['epoch'], stat['train'], stat['val']
+    task_name = config['analysis'].get('task_name', 'unspecified')
+    stats =  torch.load(stats_file_path)
+    final_epoch, _, val_stats = stats['epoch'], stats['train'], stats['val']
 
-    start_from_0 = True if final_epoch < val_stats.shape[0] else False
+    print(f"\nAnalyzing: {task_name}")
+    best_epoch, best_score, scores = None, -2, []
+    initial_status = config['analysis'].get('initial_status', {})
+    if not initial_status:
+        raise ValueError("The config must contain the 'initial_status' ")
 
-    # Run analysis per attribute
-    for attr_index, attr_name in enumerate(attr_names):
-        print(f"\nAnalyzing Attribute: {attr_name}")
-        best_epoch, best_score, scores = None, -2, []
-        if start_from_0: # contain the initial stats
-            initial_status = compute_epoch_stats(val_stats, stats_type, 0, attr_index)
-            print(f"Epoch 0:")
-            for key in initial_status:
-                print(f'{key}: {initial_status[key].item():.4f}')
-            print('')
+    for epoch_index in range(val_stats.shape[0]):
+        current_status = compute_epoch_stats(val_stats, stats_type, epoch_index)
+        # Calculate score
+        accuracy_loss = initial_status['total_accuracy'] - current_status['total_accuracy']
+        if stats_type == 'binary':
+            fairness_gain = initial_status.get('equalized_odds', 0) - current_status.get('equalized_odds', 0)
+        elif stats_type == 'multi-class':
+            fairness_gain = initial_status.get('differences_acc', 0) - current_status.get('differences_acc', 0)
         else:
-            initial_status = config['initial_status'].get(attr_name, {})
+            raise ValueError(f"Invalid stats type: {stats_type}")
+        score = fairness_gain - accuracy_loss
+        scores.append(score)
+        print(f"Epoch {epoch_index + 1}: Score = {score:.4f}")
 
-        for epoch_index in range(val_stats.shape[0]):
-            current_status = compute_epoch_stats(val_stats, stats_type, epoch_index, attr_index)
-            # Calculate score
-            accuracy_loss = initial_status['total_accuracy'] - current_status['total_accuracy']
-            if stats_type == 'binary':
-                fairness_gain = initial_status.get('equalized_odds', 0) - current_status.get('equalized_odds', 0)
-            elif stats_type == 'mult-class':
-                fairness_gain = initial_status.get('differences_acc', 0) - current_status.get('differences_acc', 0)
-            else:
-                raise ValueError(f"Invalid stats type: {stats_type}")
-            score = fairness_gain - accuracy_loss
-            scores.append(score)
-            print(f"Epoch {epoch_index + (0 if start_from_0 else 1)}: Score = {score:.4f}")
-
-        # Identify best epoch
-        best_epoch_index = np.argmax(scores)
-        best_epoch = best_epoch_index + (0 if start_from_0 else 1)
-        best_score = scores[best_epoch_index]
-        best_epoch_stats = compute_epoch_stats(val_stats, stats_type, best_epoch_index, attr_index)
-        print(f"\nBest Epoch: {best_epoch} with Score: {best_score:.4f}")
-        for key in best_epoch_stats:
-            print(f'{key}: {best_epoch_stats[key].item():.4f}')
+    # Identify best epoch
+    best_epoch_index = np.argmax(scores)
+    best_epoch = best_epoch_index + 1
+    best_score = scores[best_epoch_index]
+    best_epoch_stats = compute_epoch_stats(val_stats, stats_type, best_epoch_index)
+    print(f"\nBest Epoch: {best_epoch} with Score: {best_score:.4f}")
+    for key in best_epoch_stats:
+        print(f'{key}: {best_epoch_stats[key].item():.4f}')
 
     print(f"Total Time: {time.perf_counter() - time_start:.4f} seconds")
 
@@ -118,5 +109,5 @@ if __name__ == '__main__':
 
     # Load the configuration file specified by the command-line argument
     args = parser.parse_args()
-    config = utils.load_config(args.config_path)
+    config = load_config(args.config_path)
     main(config)

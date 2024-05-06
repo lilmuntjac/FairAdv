@@ -69,7 +69,8 @@ class CelebAXformDataset(Dataset):
         theta_values = self.attributes.iloc[idx, -6:].values.astype('float32')
         theta = theta_values.reshape(2, 3)
         # Extract target attributes
-        target_attrs = self.attributes.iloc[idx, 1:-6].values.astype('float32')
+        target_attrs = self.attributes.iloc[idx, 1:-6].values.astype('int')
+        target_attrs = (target_attrs + 1) // 2
         target = target_attrs
 
         if self.return_subgroups:

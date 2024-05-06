@@ -1,0 +1,29 @@
+training:
+  # Basic training parameters
+  batch_size: 64
+  final_epoch: 30
+  learning_rate: 0.001
+  random_seed: 2665
+  scheduler: null
+
+  # GPU configuration
+  use_cuda: true
+  gpu_setting: "0" # A string that is passed as an environment variable
+
+  # Optional: Path for loading pre-trained model weights
+  # load_path:
+  # load_stats:
+  # Path for saving model and performance data
+  save_path: "/tmp2/pfe/model/cb_at_m_b64"
+
+# Provides dataset information to correctly load the appropriate dataloader
+dataset:
+  training_schema: 'generic' # Defines how the dataset is loaded
+  name: 'celeba' # Name of the dataset
+  type: 'binary' # 'binary' or 'multi-class'; determines which fairness metrics are available
+  balanced: false
+  selected_attrs:
+    - Attractive
+  protected_attr: 'Male'
+  task_name: 'Attractive'
+  num_subgroups: 2

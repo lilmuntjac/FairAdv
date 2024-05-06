@@ -1,7 +1,7 @@
 training:
   method: generic
   # Basic training parameters
-  batch_size: 64
+  batch_size: 128
   final_epoch: 30
   learning_rate: 0.001
   random_seed: 2665
@@ -9,7 +9,7 @@ training:
 
   # GPU configuration
   use_cuda: true
-  gpu_id: 4
+  gpu_id: 0
 
   # Optional: Path for loading pre-trained model weights
   # load_path:

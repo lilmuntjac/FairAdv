@@ -2,9 +2,11 @@ import time
 from pathlib import Path
 
 import torch
-import torch.nn as nn
 
-import utils.utils as utils
+from utils.metrics_utils import (
+    normalize, get_confusion_matrix_counts, get_rights_and_wrongs_counts, 
+    print_binary_model_summary, print_multiclass_model_summary
+)
 
 class GenericTrainer:
     def __init__(self, config, train_loader, val_loader, 
@@ -13,39 +15,28 @@ class GenericTrainer:
         self.val_loader = val_loader
         self.model = model.to(device)
         self.model_type = config['dataset']['type']
-        self.attr_list = config['dataset'].get('selected_attrs', [])
-        self.attr_name = config['dataset'].get('selected_attr', 'unspecified')
+        self.task_name = config['dataset'].get('task_name', 'unspecified')
         self.criterion = criterion
         self.optimizer = optimizer
         self.scheduler = scheduler
         self.save_path = Path(save_path) # Ensure it's a Path object
         self.device = device
 
-    def compute_loss(self, outputs, labels):
-        if self.model_type == 'binary':
-            loss = self.criterion(outputs, labels[:, :-1])
-        elif self.model_type == 'multi-class':
-            loss = self.criterion(outputs, labels[:, :-1].squeeze(1))
-        else:
-            raise ValueError(f"Invalid dataset type: {self.model_type}")
-        return loss
-
     def compute_stats(self, outputs, labels):
+        _, predicted = torch.max(outputs, 1)
         if self.model_type == 'binary':
-            predicted = (outputs > 0.5).float()
-            stats = utils.get_confusion_matrix_counts(predicted, labels)
+            stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
-            _, predicted = torch.max(outputs, 1)
-            stats = utils.get_rights_and_wrongs_counts(predicted, labels)
+            stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
         return stats
 
     def show_stats(self, train_stats, val_stats):
         if self.model_type == 'binary':
-            utils.print_binary_model_summary(train_stats, val_stats, self.attr_list)
+            print_binary_model_summary(train_stats, val_stats, self.task_name)
         elif self.model_type == 'multi-class':
-            utils.print_multiclass_model_summary(train_stats, val_stats, self.attr_name)
+            print_multiclass_model_summary(train_stats, val_stats, self.task_name)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
 
@@ -53,12 +44,12 @@ class GenericTrainer:
     def train_epoch(self):
         self.model.train()
         total_loss, total_stats = 0, None
-        for batch_idx, (images, labels) in enumerate(self.train_loader):
+        for batch_idx, (images, labels, *_) in enumerate(self.train_loader):
             images, labels = images.to(self.device), labels.to(self.device)
-            images = utils.normalize(images)
+            images = normalize(images)
             self.optimizer.zero_grad()
             outputs = self.model(images)
-            loss = self.compute_loss(outputs, labels)
+            loss = self.criterion(outputs, labels[:,0])
             loss.backward()
             self.optimizer.step()
             stats = self.compute_stats(outputs, labels)
@@ -75,9 +66,9 @@ class GenericTrainer:
         with torch.no_grad():
             for batch_idx, (images, labels) in enumerate(self.val_loader):
                 images, labels = images.to(self.device), labels.to(self.device)
-                images = utils.normalize(images)
+                images = normalize(images)
                 outputs = self.model(images)
-                loss = self.compute_loss(outputs, labels)
+                loss = self.criterion(outputs, labels[:,0])
                 stats = self.compute_stats(outputs, labels)
                 # update the total loss and total stats for this epoch
                 total_loss += loss.item()

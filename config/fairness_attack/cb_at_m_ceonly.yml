@@ -1,0 +1,44 @@
+training:
+  # Basic training parameters
+  batch_size: 128
+  final_epoch: 10
+  random_seed: 2665
+  scheduler: null
+
+  # GPU configuration
+  use_cuda: true
+  gpu_setting: "0" # A string that is passed as an environment variable
+
+  # Warning: Loading an existing pattern path in base_path, not synchronizing statistical data. 
+  # Using the same folder will lead to overwriting.
+  save_path: "/tmp2/pfe/test/cb_at_m_ceonly"
+
+model: # pre-trained model that we want to alter
+  num_attributes: 1  # Number of attributes for BinaryModel
+  model_path: "/tmp2/pfe/model/cb_at_m_b64/checkpoint_epoch_0008.pth"
+
+attack:
+  pattern_type: 'perturbation'
+  fairness_criteria: 'equalized odds'
+  method: 'cross entropy'
+  alpha: 0.001      # Step size per attack iteration
+  iters: 1         # Number of attack iterations
+  base_path: null  # existing pattern's path
+
+  epsilon: 0.063        # used if parttern is perturbation
+  frame_thickness: 0.05 # used if parttern is frame
+
+  gamma_adjustment: 'constant'
+  gamma: 0.001           # Initial value for gamma, balancing fairness and accuracy
+  # gamma_adjust_factor: 0.0  # Factor for adjusting gamma based on gradient magnitudes
+
+dataset:
+  training_schema: 'pattern'
+  name: 'celeba'
+  type: 'binary' # 'binary' or 'multi-class'
+  balanced: true # to use balanced or original dataset
+  selected_attrs:
+    - Attractive
+  protected_attr: 'Male'
+  task_name: 'Attractive'
+  num_subgroups: 2

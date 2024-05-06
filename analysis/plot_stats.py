@@ -12,7 +12,7 @@ sys.path.append(str(project_root))
 
 import torch
 
-import utils.utils as utils
+from utils.config_utils import load_config
 
 def calculate_binary_model_metrics(stats):
     metrics = {
@@ -106,45 +106,44 @@ def plot_data(train_metrics, val_metrics, epoch_range, metric_key):
     else:
         raise NotImplementedError(f"Plotting for metric_key '{metric_key}' is not implemented.")
             
-def plot_attribute_stats(train_stats, val_stats, stats_type, epoch_range, attr_names, metric_keys, save_path):
-    for attr_index, attr_name in enumerate(attr_names):
-        if stats_type == 'binary':
-            train_metrics = calculate_binary_model_metrics(train_stats[:, attr_index, :, :])
-            val_metrics = calculate_binary_model_metrics(val_stats[:, attr_index, :, :])
-        elif stats_type == 'mult-class':
-            train_metrics = calculate_multiclass_model_metrics(train_stats)
-            val_metrics = calculate_multiclass_model_metrics(val_stats)
-        else:
-            raise ValueError(f"Invalid stats type: {stats_type}")
+def plot_attribute_stats(train_stats, val_stats, stats_type, epoch_range, task_name, metric_keys, save_path):
+    if stats_type == 'binary':
+        train_metrics = calculate_binary_model_metrics(train_stats)
+        val_metrics = calculate_binary_model_metrics(val_stats)
+    elif stats_type == 'mult-class':
+        train_metrics = calculate_multiclass_model_metrics(train_stats)
+        val_metrics = calculate_multiclass_model_metrics(val_stats)
+    else:
+        raise ValueError(f"Invalid stats type: {stats_type}")
         
-        for metric_key in metric_keys:
-            plt.figure(figsize=(20, 6))
+    for metric_key in metric_keys:
+        plt.figure(figsize=(20, 6))
 
-            formatted_metric_name = ' '.join(
-                word.capitalize() for word in metric_key.replace('-', ' ').replace('_', ' ').split()
-            )
-            # First subplot with Matplotlib determined y-axis limits
-            plt.subplot(1, 2, 1)
-            plot_data(train_metrics, val_metrics, epoch_range, metric_key)
-            plt.xlabel('Epoch')
-            plt.ylabel(formatted_metric_name)
-            plt.legend()
-            plt.title(f'{formatted_metric_name} over Epochs for {attr_name} (Auto y-lim)', fontsize=14)
+        formatted_metric_name = ' '.join(
+            word.capitalize() for word in metric_key.replace('-', ' ').replace('_', ' ').split()
+        )
+        # First subplot with Matplotlib determined y-axis limits
+        plt.subplot(1, 2, 1)
+        plot_data(train_metrics, val_metrics, epoch_range, metric_key)
+        plt.xlabel('Epoch')
+        plt.ylabel(formatted_metric_name)
+        plt.legend()
+        plt.title(f'{formatted_metric_name} over Epochs for {task_name} (Auto y-lim)', fontsize=14)
 
-            # Second subplot with y-axis limits set to [0, 1]
-            plt.subplot(1, 2, 2)
-            plot_data(train_metrics, val_metrics, epoch_range, metric_key)
-            plt.ylim([0, 1])
-            plt.xlabel('Epoch')
-            plt.ylabel(formatted_metric_name)
-            plt.legend()
-            plt.title(f'{formatted_metric_name} over Epochs for {attr_name} (y-lim: 0 to 1)', fontsize=14)
+        # Second subplot with y-axis limits set to [0, 1]
+        plt.subplot(1, 2, 2)
+        plot_data(train_metrics, val_metrics, epoch_range, metric_key)
+        plt.ylim([0, 1])
+        plt.xlabel('Epoch')
+        plt.ylabel(formatted_metric_name)
+        plt.legend()
+        plt.title(f'{formatted_metric_name} over Epochs for {task_name} (y-lim: 0 to 1)', fontsize=14)
         
-            # Save the plot for the attribute with all specified metrics included
-            filename = f"{attr_name.replace(' ', '_')}_{metric_key.replace(' ', '_')}.png"
-            plt.savefig(save_path / filename, bbox_inches='tight')
-            plt.close()  # Close the figure to free memory
-            print(f"Plot saved as: {save_path / filename}")
+        # Save the plot for the attribute with all specified metrics included
+        filename = f"{task_name.replace(' ', '_')}_{metric_key.replace(' ', '_')}.png"
+        plt.savefig(save_path / filename, bbox_inches='tight')
+        plt.close()  # Close the figure to free memory
+        print(f"Plot saved as: {save_path / filename}")
 
 def main(config):
     time_start = time.perf_counter()
@@ -159,34 +158,23 @@ def main(config):
     if stats_type not in ['binary', 'mult-class']:
         raise ValueError(f"Invalid stats type: {stats_type}")
     metrics = config['plotting'].get('metrics', [])
-    attr_names = config['plotting'].get('attributes', 'unspecified')
+    task_name = config['plotting'].get('task_name', 'unspecified')
     if not Path(stats_file_path).is_file():
         raise FileNotFoundError(f"Stats file not found: {stats_file_path}")
     stat =  torch.load(stats_file_path)
     final_epoch, total_train_stats, total_val_stats = stat['epoch'], stat['train'], stat['val']
 
-    # Retrieve the stats tensor based on epoch settings
-    first_epoch_num = config['plotting'].get('first_epoch_num', 1)
-    if first_epoch_num == 0: # only for method that record initial model status
-        epoch_start = config['plotting']['epoch'].get('start', 0)
-        epoch_end = config['plotting']['epoch'].get('end', total_train_stats.shape[0])
-        epoch_range = range(epoch_start, epoch_end+1)
-        train_stats, val_stats = total_train_stats[epoch_start:epoch_end+1], total_val_stats[epoch_start:epoch_end+1]
-    elif first_epoch_num == 1:
-        epoch_start = config['plotting']['epoch'].get('start', 1)
-        if epoch_start < 1:
-            raise ValueError(f"Epoch starts from 1 but {epoch_start} is smaller")
-        epoch_end = config['plotting']['epoch'].get('end', total_train_stats.shape[0])
-        epoch_range = range(epoch_start, epoch_end+1)
-        train_stats, val_stats = total_train_stats[epoch_start-1:epoch_end], total_val_stats[epoch_start-1:epoch_end]
-    else:
-        raise ValueError(f"Epoch can only starts from 0 or 1")
-    
+    # Retrieve the stats tensor based on epoch settings    
+    epoch_start = config['plotting']['epoch'].get('start', 1)
+    if epoch_start < 1:
+        raise ValueError(f"Epoch starts from 1 but {epoch_start} is smaller")
+    epoch_end = config['plotting']['epoch'].get('end', total_train_stats.shape[0])
+    epoch_range = range(epoch_start, epoch_end + 1) # for x-axis
+    train_stats, val_stats = total_train_stats[epoch_start-1:epoch_end], total_val_stats[epoch_start-1:epoch_end]
+
     # plot the diagram per attribute
-    plot_attribute_stats(train_stats, val_stats, stats_type, epoch_range, attr_names, metrics, save_path)
-
+    plot_attribute_stats(train_stats, val_stats, stats_type, epoch_range, task_name, metrics, save_path)
     print(f"Total Time: {time.perf_counter() - time_start:.4f} seconds")
-
 
 if __name__ == '__main__':
     # Parse command-line arguments
@@ -195,5 +183,5 @@ if __name__ == '__main__':
 
     # Load the configuration file specified by the command-line argument
     args = parser.parse_args()
-    config = utils.load_config(args.config_path)
+    config = load_config(args.config_path)
     main(config)
