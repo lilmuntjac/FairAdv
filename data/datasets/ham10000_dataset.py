@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 class HAM10000Dataset(Dataset):
     """Custom PyTorch Dataset class for the HAM10000 dataset."""
 
-    def __init__(self, csv_file, img_dir, transform=None):
+    def __init__(self, csv_file, img_dir, selected_attrs=None, transform=None):
         """
         Args:
             csv_file (string): Path to the CSV file with annotations.
@@ -19,9 +19,15 @@ class HAM10000Dataset(Dataset):
         self.img_dir = Path(img_dir)
         self.transform = transform
 
+        # Set default for selected_attrs if None
+        if selected_attrs is None:
+            selected_attrs = ['diagnosis', 'sex']
+        self.selected_attrs = selected_attrs
+
         # Dictionaries for mapping labels
         self.case_dict = {'akiec': 0, 'bcc': 1, 'bkl': 2, 'df': 3, 'mel': 4, 'nv': 5, 'vasc': 6}
         self.gender_dict = {'male': 0, 'unknown': 0, 'female': 1}
+        # This dataset also includes age, but it has not been implemented yet.
 
     def __len__(self):
         return len(self.attributes.index)
@@ -45,8 +51,12 @@ class HAM10000Dataset(Dataset):
         dx_label = self.case_dict.get(self.attributes.iloc[index]['dx'], -1)
         sex_label = self.gender_dict.get(self.attributes.iloc[index]['sex'], 0)
 
-        # Create target array
-        target = np.array([dx_label, sex_label], dtype=np.int64)
+        target_labels = {
+            'diagnosis': dx_label,
+            'sex': sex_label
+        }
+        target = [target_labels[attr] for attr in self.selected_attrs]
+        target = np.array(target, dtype=np.int64)
 
         return image, target
         

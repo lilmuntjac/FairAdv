@@ -26,8 +26,9 @@ def create_celeba_data_loaders(
     partition_file='/tmp2/dataset/celeba/list_eval_partition.txt',
     img_dir='/tmp2/dataset/celeba/img_align_celeba',
     selected_attrs=None,
+    batch_size=128,
     sampler=None,
-    batch_size=128
+    return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
     return_subgroups = False
@@ -47,7 +48,8 @@ def create_celeba_data_loaders(
         partition_type=0,  # 0 for train
         selected_attrs=selected_attrs,
         transform=train_transform,
-        return_subgroups=return_subgroups
+        return_subgroups=return_subgroups,
+        return_two_versions=return_two_versions
     )
 
     val_dataset = CelebADataset(
@@ -86,8 +88,9 @@ def create_celeba_xform_data_loaders(
     val_csv='/tmp2/dataset/celeba_tm/celeba_tm_test.csv',
     img_dir='/tmp2/dataset/celeba/img_align_celeba',
     selected_attrs=None,
+    batch_size=128,
     sampler=None,
-    batch_size=128
+    return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
     return_subgroups = False
@@ -101,7 +104,8 @@ def create_celeba_xform_data_loaders(
         img_dir=img_dir,
         selected_attrs=selected_attrs,
         transform=train_transform,
-        return_subgroups=return_subgroups
+        return_subgroups=return_subgroups,
+        return_two_versions=return_two_versions
     )
 
     val_dataset = CelebAXformDataset(
@@ -133,7 +137,9 @@ def create_fairface_data_loaders(
     val_csv='/tmp2/dataset/fairface-img-margin025-trainval/fairface_label_val.csv',
     root_dir='/tmp2/dataset/fairface-img-margin025-trainval',
     selected_attrs=['age', 'race'],
-    batch_size=128
+    batch_size=128,
+    sampler=None,
+    return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the FairFace dataset. """
     train_transform = get_transforms(augment=True)
@@ -169,7 +175,9 @@ def create_fairface_xform_data_loaders(
     val_csv='/tmp2/dataset/fairface-img-margin025-trainval/fairface_label_tm_val.csv',
     root_dir='/tmp2/dataset/fairface-img-margin025-trainval',
     selected_attrs=['age', 'race'],
-    batch_size=128
+    batch_size=128,
+    sampler=None,
+    return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the FairFace dataset. """
     train_transform = get_transforms(augment=True)
@@ -204,7 +212,10 @@ def create_ham10000_data_loaders(
         train_csv='/tmp2/dataset/HAM10000/ham10000_train.csv',
         val_csv='/tmp2/dataset/HAM10000/ham10000_val.csv',
         img_dir='/tmp2/dataset/HAM10000/train', # we don't use test set cause a lot of gender is missing
-        batch_size=128
+        selected_attrs=['diagnosis', 'sex'],
+        batch_size=128,
+        sampler=None,
+        return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the HAM10000 dataset. """
     train_transform = get_transforms(augment=True)

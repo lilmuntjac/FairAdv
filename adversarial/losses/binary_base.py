@@ -91,10 +91,10 @@ class BinaryLossBase:
         # and the output tensor will be on the same device as the input.
         fpr = torch.full_like(denominator, fill_value=0.0, dtype=torch.float)
         fpr_mask = (denominator != 0)
-        fpr[fpr_mask] = numerator[fpr_mask]/denominator[fpr_mask]
+        fpr[fpr_mask] = numerator[fpr_mask] / denominator[fpr_mask]
         return fpr
-    
-class CrossEntropy(BinaryLossBase):
+
+class BinaryCrossEntropy(BinaryLossBase):
     def __init__(self, fairness_criteria):
         super().__init__(fairness_criteria)
 
@@ -109,6 +109,6 @@ class CrossEntropy(BinaryLossBase):
         Returns:
             torch.Tensor: Calculated fairness loss.
         """
-        actual_labels = labels[:,  0] # in shape (N,)
-        loss = F.cross_entropy(outputs, actual_labels)
+        actual_labels = labels[:, :-1].float() # in shape (N,)
+        loss = F.binary_cross_entropy_with_logits(outputs, actual_labels)
         return loss

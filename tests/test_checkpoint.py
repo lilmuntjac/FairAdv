@@ -82,7 +82,7 @@ class TestCheckpoint(unittest.TestCase):
     def setup_model_class(config, device):
         training_schema = config['dataset'].get('training_schema', '')
         if training_schema in ['generic', 'pattern', 'mfd']:
-            model = GenericModel(num_subgroups=config['dataset']['num_subgroups']).to(device)
+            model = GenericModel(num_outputs=config['dataset']['num_outputs']).to(device)
         elif training_schema in ['contrastive',]:
             model = GenericModel(contrastive=True).to(device)
         else:
@@ -163,10 +163,15 @@ class TestCheckpoint(unittest.TestCase):
             raise ValueError(f"Invalid dataset type: {self.model_type}")
 
     def compute_stats(self, outputs, labels):
-        _, predicted = torch.max(outputs, 1)
         if self.model_type == 'binary':
+            # The binary model does not include a sigmoid function in the output. 
+            # Remember to pass the output through the sigmoid function first, 
+            # then obtain the predictions from it.
+            outputs = torch.sigmoid(outputs)
+            predicted = (outputs > 0.5).int()
             stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
+            _, predicted = torch.max(outputs, 1)
             stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")

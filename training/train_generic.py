@@ -22,11 +22,25 @@ class GenericTrainer:
         self.save_path = Path(save_path) # Ensure it's a Path object
         self.device = device
 
-    def compute_stats(self, outputs, labels):
-        _, predicted = torch.max(outputs, 1)
+    def compute_loss(self, outputs, labels):
         if self.model_type == 'binary':
+            loss = self.criterion(outputs, labels[:, :-1].float())
+        elif self.model_type == 'multi-class':
+            loss = self.criterion(outputs, labels[:, :-1].squeeze(1))
+        else:
+            raise ValueError(f"Invalid dataset type: {self.model_type}")
+        return loss
+
+    def compute_stats(self, outputs, labels):
+        if self.model_type == 'binary':
+            # The binary model does not include a sigmoid function in the output. 
+            # Remember to pass the output through the sigmoid function first, 
+            # then obtain the predictions from it.
+            outputs = torch.sigmoid(outputs)
+            predicted = (outputs > 0.5).int()
             stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
+            _, predicted = torch.max(outputs, 1)
             stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
@@ -49,7 +63,7 @@ class GenericTrainer:
             images = normalize(images)
             self.optimizer.zero_grad()
             outputs = self.model(images)
-            loss = self.criterion(outputs, labels[:,0])
+            loss = self.compute_loss(outputs, labels)
             loss.backward()
             self.optimizer.step()
             stats = self.compute_stats(outputs, labels)
@@ -68,7 +82,7 @@ class GenericTrainer:
                 images, labels = images.to(self.device), labels.to(self.device)
                 images = normalize(images)
                 outputs = self.model(images)
-                loss = self.criterion(outputs, labels[:,0])
+                loss = self.compute_loss(outputs, labels)
                 stats = self.compute_stats(outputs, labels)
                 # update the total loss and total stats for this epoch
                 total_loss += loss.item()
@@ -91,7 +105,7 @@ class GenericTrainer:
             print(f"Epoch {epoch} completed in {epoch_time:.2f} seconds ({epoch_time / 60:.2f} minutes)")
             print(f'Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
             self.show_stats(train_stats, val_stats)
-            print('-'*100)
+            print('-'*120)
             # Concatenate the new epoch's stats along the epoch dimension
             total_train_stats = torch.cat((total_train_stats, train_stats.unsqueeze(0)), dim=0)
             total_val_stats   = torch.cat((total_val_stats,   val_stats.unsqueeze(0)), dim=0)

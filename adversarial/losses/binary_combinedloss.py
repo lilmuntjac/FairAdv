@@ -1,7 +1,10 @@
+from collections import deque
+
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-from .binary_base import CrossEntropy
+from .binary_base import BinaryCrossEntropy
 from .constraint import BinaryFairnessConstraint
 from .equimask import BinaryEquimask
 
@@ -11,11 +14,18 @@ class CombinedBinaryLoss(nn.Module):
                  main_loss, 
                  secondary_loss=None,
                  gamma_adjustment='constant',
-                 gamma=1.0,):
+                 gamma=1.0,
+                 gamma_adjust_factor=0.01,
+                 accuracy_goal=0.8,
+                 window_size=10):
         super(CombinedBinaryLoss, self).__init__()
         self.fairness_criteria = fairness_criteria
         self.gamma = gamma
         self.gamma_adjustment = gamma_adjustment
+        self.gamma_adjust_factor = gamma_adjust_factor
+        self.accuracy_goal = accuracy_goal
+        self.window_size = window_size
+        self.accuracy_history = deque(maxlen=window_size)
 
         self.main_loss = self.get_loss(main_loss)
         self.secondary_loss = self.get_loss(secondary_loss) if secondary_loss else None
@@ -25,39 +35,53 @@ class CombinedBinaryLoss(nn.Module):
         Retrieves a loss function object based on the provided loss name.
         """
         match loss_name.lower():
-            case 'cross entropy':
-                return CrossEntropy(self.fairness_criteria)
+            case 'binary cross entropy':
+                return BinaryCrossEntropy(self.fairness_criteria)
             case 'fairness constraint':
-                return BinaryFairnessConstraint(self.fairness_criteria, use_perturbed_optimizer=False)
+                return BinaryFairnessConstraint(self.fairness_criteria, 'gumbel_sigmoid')
+            case 'crude fairness constraint':
+                return BinaryFairnessConstraint(self.fairness_criteria, 'steep_function')
             case 'perturbed fairness constraint':
-                return BinaryFairnessConstraint(self.fairness_criteria, use_perturbed_optimizer=True)
+                return BinaryFairnessConstraint(self.fairness_criteria, 'perturbed_optimizer')
             case 'equimask':
                 return BinaryEquimask(self.fairness_criteria)
             case _:
                 raise NotImplementedError()
             
-    def adjust_gamma_based_on_gradient(self, main_grad, secondary_grad):
+    def get_accuracy(self, outputs, labels):
+        # Extract the protected attribute and actual labels from the labels tensor
+        protected_attribute = labels[:, -1] # in shape (N,)
+        actual_labels = labels[:, :-1]      # in shape (N, 1)
+        outputs = torch.sigmoid(outputs)
+        predictions = (outputs > 0.5).int() # in shape (N, 1)
+
+        accuracy = (predictions == actual_labels).float().mean()
+        return accuracy
+    
+    def adjust_gamma_based_on_accuracy(self, outputs, labels, verbose=False):
         """
-        Adjusts the gamma based on the gradient magnitudes of 2 losses.
-
-        Args:
-            main_grad (torch.Tensor): Gradient of the main loss.
-            secondary_grad (torch.Tensor): Gradient of the secondary loss.
+        Adjusts the gamma based on the accuracy of the model compared to an accuracy goal.
+        Only adjust the gamma once the history has been filled up.
         """
-        if self.gamma_adjustment == 'dynamic':
-            main_norm = main_grad.norm()
-            secondary_norm = secondary_grad.norm()
+        current_accuracy = self.get_accuracy(outputs, labels)
+        self.accuracy_history.append(current_accuracy)  # Add current accuracy to history
+        if len(self.accuracy_history) == self.window_size:
+            average_accuracy = torch.tensor(list(self.accuracy_history)).mean()
 
-            ratio = secondary_norm / main_norm
-            desired_gamma = self.gamma / ratio.item()
-            self.gamma += 0.1 * (desired_gamma - self.gamma)
-            self.gamma = max(min(self.gamma, 10), 0.001)
+            if verbose:
+                print(f'Current Accuracy: {current_accuracy:.4f}')
+                print(f'Average Accuracy: {average_accuracy:.4f}')
 
-            print(f"Main Gradient Norm: {main_norm}")
-            print(f"Secondary Gradient Norm: {secondary_norm}")
-            print(f"Current Gamma: {self.gamma}")
-            print(f"Gradient Ratio (secondary/main): {ratio}")
-            print(f"Adjusted Gamma: {self.gamma}")
+            if self.gamma_adjustment == 'dynamic':
+                if average_accuracy < self.accuracy_goal:
+                    self.gamma *= (1 - self.gamma_adjust_factor)
+                elif average_accuracy > self.accuracy_goal:
+                    self.gamma *= (1 + self.gamma_adjust_factor)
+
+                # Ensure gamma stays within reasonable bounds
+                self.gamma = min(max(self.gamma, 0.00001), 10.0)
+                if verbose:
+                    print(f'Gamma after adjustment: {self.gamma:.4f}')
         # No adjustment is made if 'constant' is selected
 
     def forward(self, outputs, labels, applier, train_mode=True):
@@ -67,17 +91,7 @@ class CombinedBinaryLoss(nn.Module):
             secondary_loss = self.secondary_loss.compute_loss(outputs, labels)
 
             if train_mode:
-                # Get the gradients from both losses
-                applier.clear_gradient()
-                main_loss.backward(retain_graph=True)
-                main_loss_grad = applier.get_gradient().clone()
-                applier.clear_gradient()
-                secondary_loss.backward(retain_graph=True)
-                secondary_loss_grad = applier.get_gradient().clone()
-
-                # Adjust gamma based on the gradient magnitudes
-                self.adjust_gamma_based_on_gradient(main_loss_grad, secondary_loss_grad)
-                applier.clear_gradient()
+                self.adjust_gamma_based_on_accuracy(outputs, labels, verbose=False)
 
             combined_loss = main_loss + self.gamma * secondary_loss
             return combined_loss

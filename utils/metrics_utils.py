@@ -34,7 +34,7 @@ def get_confusion_matrix_counts(predictions, labels):
 
     for group_idx in [0, 1]:
         group_mask = (protected_attr == group_idx)
-        group_preds = predictions[group_mask]
+        group_preds = predictions[group_mask, 0] # Assume there's only 1 target attribute
         group_labels = labels[group_mask, 0] # Assume labels for the targeted attribute are in the first column
 
         TP = torch.sum((group_preds == 1) & (group_labels == 1))

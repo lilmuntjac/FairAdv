@@ -8,8 +8,8 @@ class CelebADataset(Dataset):
     """Custom Dataset for loading CelebA dataset images and selected attributes,
     and optionally returning subgroup info."""
 
-    def __init__(self, attr_file, partition_file, img_dir, partition_type, 
-                 selected_attrs=None, transform=None, return_subgroups=False):
+    def __init__(self, attr_file, partition_file, img_dir, partition_type, selected_attrs=None, 
+                 transform=None, return_subgroups=False, return_two_versions=False):
         """
         Args:
             attr_file (string): Path to the file with annotations (attributes).
@@ -20,10 +20,12 @@ class CelebADataset(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
             return_subgroups (bool, optional): If True, returns subgroup information
                                                along with images and attributes.
+            return_two_versions (bool, optional): If True, returns two augmented versions of each image.
         """
         self.img_dir = Path(img_dir)
         self.transform = transform
         self.return_subgroups = return_subgroups
+        self.return_two_versions = return_two_versions
 
         # Read the attributes file
         with open(attr_file, 'r') as f:
@@ -66,7 +68,11 @@ class CelebADataset(Dataset):
         image = Image.open(img_path).convert('RGB')
 
         if self.transform:
-            image = self.transform(image)
+            if self.return_two_versions:
+                image1 = self.transform(image)
+                image2 = self.transform(image)
+            else:
+                image = self.transform(image)
 
         # Extract and map selected attributes
         attributes = self.data.iloc[idx][self.selected_attrs].to_numpy()
@@ -74,10 +80,15 @@ class CelebADataset(Dataset):
 
         if self.return_subgroups:
             subgroup = self.data.iloc[idx]['subgroup']
-            return image, attributes, subgroup
+            if self.return_two_versions:
+                return (image1, image2), attributes, subgroup
+            else:
+                return image, attributes, subgroup
         else:
-            return image, attributes
-
+            if self.return_two_versions:
+                return (image1, image2), attributes
+            else:
+                return image, attributes
 
 # import matplotlib.pyplot as plt
 # from torchvision import transforms, utils
@@ -95,7 +106,9 @@ class CelebADataset(Dataset):
 #                                img_dir='/tmp2/dataset/celeba/img_align_celeba',
 #                                partition_type=0,  # 0 for train, 1 for val, 2 for test
 #                                selected_attrs=selected_attrs,
-#                                transform=transform)
+#                                transform=transform,
+#                                return_subgroups=False,
+#                                return_two_versions=False)
 
 # # Function to save an image
 # def save_image(image, attr_str, idx, output_dir='.'):
@@ -104,7 +117,7 @@ class CelebADataset(Dataset):
 
 # # Iterate over the first three items in the dataset and save the images
 # for i in range(3):
-#     image, attributes = celeba_dataset[i]
+#     image, attributes, *_ = celeba_dataset[i]
 #     attr_values = zip(selected_attrs, attributes)
 #     attr_str = ', '.join([f'{attr}: {"Yes" if value > 0 else "No"}' for attr, value in attr_values])
 

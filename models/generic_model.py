@@ -4,10 +4,10 @@ from torchvision import models
 
 class GenericModel(nn.Module):
     """model that based on ResNet18 architecture"""
-    def __init__(self, num_subgroups=2, contrastive=False):
+    def __init__(self, num_outputs=1, contrastive=False):
         """
         Args:
-            num_subgroups (int): The number of subgroups (or classes) for the classification task.
+            num_outputs (int): The number of outputs for the classification task.
             contrastive (bool): A flag indicating whether the model should be initialized in contrastive mode,
                                 which determines the inclusion of a contrastive projection head
         """
@@ -24,10 +24,11 @@ class GenericModel(nn.Module):
                 nn.ReLU(),
                 nn.Linear(512, 128)
             )
+            self.classification_head = None
         else:
             self.contrastive_head = None
-        # classification head for generic training
-        self.classification_head = nn.Linear(512, num_subgroups)
+            # classification head for generic training
+            self.classification_head = nn.Linear(512, num_outputs)
 
     def forward(self, x, get_feature=False, contrastive=False):
         """

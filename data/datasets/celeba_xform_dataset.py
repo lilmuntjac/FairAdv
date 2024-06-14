@@ -8,7 +8,8 @@ class CelebAXformDataset(Dataset):
     """Custom Dataset for loading CelebA dataset images with affine transformation matrices
     and optionally returning subgroup information."""
 
-    def __init__(self, csv_file, img_dir, selected_attrs=None, transform=None, return_subgroups=False):
+    def __init__(self, csv_file, img_dir, selected_attrs=None, transform=None, 
+                 return_subgroups=False, return_two_versions=False):
         """
         Args:
             csv_file (string): Path to the CSV file with annotations.
@@ -17,11 +18,14 @@ class CelebAXformDataset(Dataset):
             transform (callable, optional): Optional transform to be applied on a sample.
             return_subgroups (bool, optional): If True, includes subgroup information
                                                with each returned item.
+            return_two_versions (bool, optional): If True, returns two augmented versions 
+                                                  of each image.
         """
         self.attributes_full = pd.read_csv(csv_file)
         self.img_dir = Path(img_dir)
         self.transform = transform
         self.return_subgroups = return_subgroups
+        self.return_two_versions = return_two_versions
 
         # Filter and reorder columns based on selected attributes
         mandatory_cols = ['filename']  # Mandatory column
@@ -29,7 +33,8 @@ class CelebAXformDataset(Dataset):
         # If selected attributes are not provided, use all attributes from the CSV
         if selected_attrs is None:
             # Exclude filename and theta columns to get only attribute columns
-            all_attr_cols = [col for col in self.attributes_full.columns if col not in mandatory_cols + theta_cols]
+            all_attr_cols = [col for col in self.attributes_full.columns 
+                             if col not in mandatory_cols + theta_cols]
             selected_attrs = all_attr_cols
 
         # Combine all columns needed
@@ -63,7 +68,11 @@ class CelebAXformDataset(Dataset):
         image = Image.open(img_path).convert('RGB')
 
         if self.transform:
-            image = self.transform(image)
+            if self.return_two_versions:
+                image1 = self.transform(image)
+                image2 = self.transform(image)
+            else:
+                image = self.transform(image)
 
         # Extract theta values as a numpy array
         theta_values = self.attributes.iloc[idx, -6:].values.astype('float32')
@@ -75,6 +84,12 @@ class CelebAXformDataset(Dataset):
 
         if self.return_subgroups:
             subgroup = self.attributes.iloc[idx]['subgroup']
-            return image, theta, target, subgroup
+            if self.return_two_versions:
+                return (image1, image2), theta, target, subgroup
+            else:
+                return image, theta, target, subgroup
         else:
-            return image, theta, target
+            if self.return_two_versions:
+                return (image1, image2), theta, target
+            else:
+                return image, theta, target

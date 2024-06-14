@@ -44,12 +44,26 @@ class MFDTrainer:
         checkpoint = torch.load(teacher_path, map_location=self.device)
         teacher_model.load_state_dict(checkpoint['model_state_dict'])
         return teacher_model
+    
+    def compute_generic_loss(self, outputs, labels):
+        if self.model_type == 'binary':
+            loss = self.criterion(outputs, labels[:, :-1].float())
+        elif self.model_type == 'multi-class':
+            loss = self.criterion(outputs, labels[:, :-1].squeeze(1))
+        else:
+            raise ValueError(f"Invalid dataset type: {self.model_type}")
+        return loss
 
     def compute_stats(self, outputs, labels):
-        _, predicted = torch.max(outputs, 1)
         if self.model_type == 'binary':
+            # The binary model does not include a sigmoid function in the output. 
+            # Remember to pass the output through the sigmoid function first, 
+            # then obtain the predictions from it.
+            outputs = torch.sigmoid(outputs)
+            predicted = (outputs > 0.5).int()
             stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
+            _, predicted = torch.max(outputs, 1)
             stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
@@ -73,7 +87,7 @@ class MFDTrainer:
             # the original model training loss
             self.optimizer.zero_grad()
             outputs, student_feature = self.model(images, get_feature=True)
-            generic_loss = loss = self.criterion(outputs, labels[:,0])
+            generic_loss = self.compute_generic_loss(outputs, labels)
             # MMD loss
             _, teacher_feature = self.teacher(images, get_feature=True)
             mmd_loss = self.mmd_criterion(teacher_feature, student_feature, subgroups)
@@ -98,7 +112,7 @@ class MFDTrainer:
                 images = normalize(images)
                 # the original model training loss
                 outputs, student_feature = self.model(images, get_feature=True)
-                # generic_loss = loss = self.criterion(outputs, labels[:,0])
+                # generic_loss = self.compute_generic_loss(outputs, labels)
                 # MMD loss
                 # _, teacher_feature = self.teacher(images, get_feature=True)
                 # mmd_loss = self.mmd_criterion(teacher_feature, student_feature, subgroups)

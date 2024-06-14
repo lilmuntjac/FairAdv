@@ -1,13 +1,14 @@
 from pathlib import Path
 
 import torch
-from torch.optim.lr_scheduler import ReduceLROnPlateau, MultiStepLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau, MultiStepLR, CosineAnnealingLR
 
 from models.generic_model import GenericModel
 from data.loaders.dataloader import (create_celeba_data_loaders, create_celeba_xform_data_loaders,
                                      create_fairface_data_loaders, create_fairface_xform_data_loaders,
                                      create_ham10000_data_loaders)
-from training import GenericTrainer, MFDTrainer, FairPatternTrainer
+from training import (GenericTrainer, MFDTrainer, FairPatternTrainer, 
+                      FSCLSupConTrainer, FSCLClassifierTrainer)
 
 def setup_training_components(config, device):
     """
@@ -18,19 +19,30 @@ def setup_training_components(config, device):
     """
     # Model
     training_schema = config['dataset'].get('training_schema', '')
-    if training_schema in ['generic', 'pattern', 'mfd']:
-        model = GenericModel(num_subgroups=config['dataset']['num_subgroups']).to(device)
-    elif training_schema in ['contrastive',]:
-        model = GenericModel(contrastive=True).to(device)
+    if training_schema in ['generic', 'pattern', 'mfd', 'fscl classifier']:
+        model = GenericModel(num_outputs=config['dataset']['num_outputs']).to(device)
+    elif training_schema in ['fscl supcon',]:
+        model = GenericModel(num_outputs=config['dataset']['num_outputs'],
+                             contrastive=True).to(device)
     else:
         raise ValueError(f"Invalid training method: {training_schema}")
     
     # Optimizer
     learning_rate = float(config['training'].get('learning_rate', 1e-3))
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    if training_schema in ['fscl supcon', 'fscl classifier']:
+        optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,
+                                    momentum=0.9, weight_decay=1e-4)
+    else:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Criterion
-    criterion = torch.nn.CrossEntropyLoss()
+    criterion_type = config['dataset'].get('type', 'binary')
+    if criterion_type == 'binary':
+        criterion = torch.nn.BCEWithLogitsLoss()
+    elif criterion_type == 'multi-class':
+        criterion = torch.nn.CrossEntropyLoss()
+    else:
+        raise ValueError(f"Unsupported criterion type: {criterion_type}")
 
     # Scheduler
     if 'scheduler' in config['training'] and config['training']['scheduler']:
@@ -39,6 +51,10 @@ def setup_training_components(config, device):
             scheduler = ReduceLROnPlateau(optimizer)
         elif scheduler_type == "MultiStepLR":
             scheduler = MultiStepLR(optimizer, [30, 60, 90], gamma=0.1)
+        elif scheduler_type == "CosineAnnealingLR":
+            eta_min = learning_rate * (0.1 ** 3)
+            epoch = config['training'].get('final_epoch', 10)
+            scheduler = CosineAnnealingLR(optimizer, T_max=epoch, eta_min=eta_min)
         else:
             raise ValueError(f"Unsupported scheduler type: {scheduler_type}")
     else:
@@ -94,7 +110,7 @@ def setup_stats_tensors(config, passed_epoch):
             raise ValueError(f"Stats tensor shape mismatch: expected {passed_epoch}, got {loaded_stats['epoch']} instead")
         train_stats, val_stats = loaded_stats['train'], loaded_stats['val']
     else:
-        # IInitialize stats tensors based on model type in config
+        # Initialize stats tensors based on model type in config
         model_type = config['dataset'].get('type', 'binary')
         if model_type == 'binary':
             # For binary: 2 groups, counts of [TP, FP, FN, TN]
@@ -134,24 +150,19 @@ def select_data_loader(config):
             loader_function = create_fairface_data_loaders
         elif dataset_name == 'ham10000':
             loader_function = create_ham10000_data_loaders
-            train_loader, val_loader = loader_function(batch_size=config['training']['batch_size'])
-            return train_loader, val_loader
         else:
             raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
         
     balanced = config['dataset'].get('balanced', False)
+    # Get the loader function parameters
+    selected_attrs = config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']]
+    batch_size = config['training']['batch_size']
+    sampler = 'balanced_batch_sampler' if balanced else None # BalancedBatchSampler
+    return_two_versions = True if config['dataset'].get('training_schema', None) == 'fscl supcon' else False
+
     # Configure the dataloader based on the training method. 
-    if not balanced:
-        train_loader, val_loader = loader_function(
-            selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
-            batch_size=config['training']['batch_size']
-        )
-    else:
-        train_loader, val_loader = loader_function(
-            selected_attrs=config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']],
-            batch_size=config['training']['batch_size'],
-            sampler='balanced_batch_sampler' # BalancedBatchSampler
-        )
+    train_loader, val_loader = loader_function(selected_attrs=selected_attrs, batch_size=batch_size, 
+                                               sampler=sampler, return_two_versions=return_two_versions)
     return train_loader, val_loader
 
 def select_trainer(config):
@@ -168,5 +179,9 @@ def select_trainer(config):
         return FairPatternTrainer
     elif training_schema =='mfd':
         return MFDTrainer
+    elif training_schema == 'fscl supcon':
+        return FSCLSupConTrainer
+    elif training_schema == 'fscl classifier':
+        return FSCLClassifierTrainer
     else:
         raise ValueError(f"Invalid trainer method specified in config: {training_schema}")

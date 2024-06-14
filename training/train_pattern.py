@@ -35,12 +35,12 @@ class FairPatternTrainer:
             'epsilon': config['attack'].get('epsilon', 0), # for perturbation
             'gamma': config['attack'].get('gamma', 0),     # balancing fairness and accuracy
             'gamma_adjustment': config['attack'].get('gamma_adjustment', 'constant'),
-            # 'gamma_adjust_factor': config['attack'].get('gamma_adjust_factor', 0),
-            'ratio_history': [],
-            'ratio_history_length': 10,
+            'gamma_adjust_factor': config['attack'].get('gamma_adjust_factor', 0),
+            'accuracy_goal': config['attack'].get('accuracy_goal', 0.8),
+            # 'ratio_history': [],
+            # 'ratio_history_length': 10,
         }
         self.load_pretrained_weight(config)
-        # self.get_fairness_loss(config)
         self.get_training_loss(config)
 
     def select_applier(self, config, pattern=None, device='cpu'):
@@ -99,17 +99,19 @@ class FairPatternTrainer:
 
         # Default values for loss parameters
         fairness_criteria = self.attack_params['fairness_criteria']
-        gamma_adjustment = self.attack_params['gamma_adjustment']
         gamma = self.attack_params['gamma']
-        main_loss = 'cross entropy'  # Default main loss
+        gamma_adjustment = self.attack_params['gamma_adjustment']
+        gamma_adjust_factor = self.attack_params['gamma_adjust_factor']
+        accuracy_goal = self.attack_params['accuracy_goal']
+        main_loss = 'binary cross entropy'  # Default main loss
         secondary_loss = None  # Default no secondary loss
 
         # Define loss mappings for easier configuration
         loss_mappings = {
-            'cross entropy': (main_loss, secondary_loss),
+            'binary cross entropy': (main_loss, secondary_loss),
             'fairness constraint': (main_loss, 'fairness constraint'),
             'perturbed fairness constraint': (main_loss, 'perturbed fairness constraint'),
-            'EquiMask': ('EquiMask', None),
+            'EquiMask': ('EquiMask', secondary_loss),
             'EquiMask fairness constraint': ('EquiMask', 'fairness constraint'),
             'EquiMask perturbed fairness constraint': ('EquiMask', 'perturbed fairness constraint'),
         }
@@ -121,8 +123,10 @@ class FairPatternTrainer:
                     fairness_criteria=fairness_criteria,
                     main_loss=main_loss,
                     secondary_loss=secondary_loss,
+                    gamma=gamma,
                     gamma_adjustment=gamma_adjustment,
-                    gamma=gamma
+                    gamma_adjust_factor=gamma_adjust_factor,
+                    accuracy_goal=accuracy_goal,
                 )
             else:
                 raise NotImplementedError(f"Loss type '{loss_type}' is not implemented for binary models")
@@ -130,10 +134,15 @@ class FairPatternTrainer:
             raise NotImplementedError(f"Model type '{model_type}' is not supported")
 
     def compute_stats(self, outputs, labels):
-        _, predicted = torch.max(outputs, 1)
         if self.model_type == 'binary':
+            # The binary model does not include a sigmoid function in the output. 
+            # Remember to pass the output through the sigmoid function first, 
+            # then obtain the predictions from it.
+            outputs = torch.sigmoid(outputs)
+            predicted = (outputs > 0.5).int()
             stats = get_confusion_matrix_counts(predicted, labels)
         elif self.model_type == 'multi-class':
+            _, predicted = torch.max(outputs, 1)
             stats = get_rights_and_wrongs_counts(predicted, labels)
         else:
             raise ValueError(f"Invalid dataset type: {self.model_type}")
@@ -211,7 +220,7 @@ class FairPatternTrainer:
             print(f"Epoch {epoch} completed in {epoch_time:.2f} seconds ({epoch_time / 60:.2f} minutes)")
             print(f'Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
             self.show_stats(train_stats, val_stats)
-            print('-'*100)
+            print('-'*120)
             # Concatenate the new epoch's stats along the epoch dimension
             total_train_stats = torch.cat((total_train_stats, train_stats.unsqueeze(0)), dim=0)
             total_val_stats   = torch.cat((total_val_stats,   val_stats.unsqueeze(0)), dim=0)

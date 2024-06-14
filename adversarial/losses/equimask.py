@@ -25,8 +25,9 @@ class BinaryEquimask(BinaryLossBase):
         """
         # Extract the protected attribute and actual labels from the labels tensor
         protected_attribute = labels[:, -1] # in shape (N,)
-        actual_labels = labels[:, 0]        # in shape (N,)
-        _, predictions = torch.max(outputs, 1) # in shape (N,)
+        actual_labels = labels[:, :-1]      # in shape (N, 1)
+        outputs = torch.sigmoid(outputs)
+        predictions = (outputs > 0.5).int() # in shape (N, 1)
 
         # Split predictions and labels by protected attribute
         group_0_pred,  group_1_pred  = self._split_by_protected_attribute(predictions, protected_attribute)
@@ -52,18 +53,18 @@ class BinaryEquimask(BinaryLossBase):
         # Apply masks based on the specified fairness criteria
         match self.fairness_criteria:
             case 'equality of opportunity':
-                masks[(protected_attribute == lower_tpr_group) & fn_mask] = 1
-                masks[(protected_attribute == lower_tpr_group) & tp_mask] = 1
+                masks[(protected_attribute == lower_tpr_group).unsqueeze(-1) & fn_mask] = 1
+                masks[(protected_attribute == lower_tpr_group).unsqueeze(-1) & tp_mask] = 1
             case 'equalized odds':
-                masks[(protected_attribute == lower_tpr_group) & fn_mask] = 1
-                masks[(protected_attribute == lower_tpr_group) & tp_mask] = 1
-                masks[(protected_attribute == higher_fpr_group) & fp_mask] = 1
-                masks[(protected_attribute == higher_fpr_group) & tn_mask] = 1
+                masks[(protected_attribute == lower_tpr_group).unsqueeze(-1) & fn_mask] = 1
+                masks[(protected_attribute == lower_tpr_group).unsqueeze(-1) & tp_mask] = 1
+                masks[(protected_attribute == higher_fpr_group).unsqueeze(-1) & fp_mask] = 1
+                masks[(protected_attribute == higher_fpr_group).unsqueeze(-1) & tn_mask] = 1
             case _:
                 raise NotImplementedError(f"Fairness criteria '{self.fairness_criteria}' is not supported.")
 
         # Calculate the masked cross entropy loss, considering only selected parts based on fairness
-        cross_entropy = F.cross_entropy(outputs, actual_labels, reduction='none')
+        binary_cross_entropy = F.binary_cross_entropy_with_logits(outputs, actual_labels.float(), reduction='none')
         mask_count = masks.sum()
-        loss = (cross_entropy * masks).sum() / (mask_count if mask_count > 0 else 1)
+        loss = (binary_cross_entropy * masks).sum() / (mask_count if mask_count > 0 else 1)
         return loss.mean()
