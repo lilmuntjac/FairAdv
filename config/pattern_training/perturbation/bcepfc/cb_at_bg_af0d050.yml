@@ -11,16 +11,16 @@ training:
 
   # Warning: Loading an existing pattern path in base_path, not synchronizing statistical data. 
   # Using the same folder will lead to overwriting.
-  save_path: "/tmp2/pfe/test/cb_at_m_ceonly"
+  save_path: "/tmp2/pfe/pattern/pert/bcepfc/cb_at_bg_af0d050"
 
 model: # pre-trained model that we want to alter
   num_attributes: 1  # Number of attributes for BinaryModel
-  model_path: "/tmp2/pfe/model/cb_at_m_b64/checkpoint_epoch_0008.pth"
+  model_path: "/tmp2/pfe/model/cb_at_m_b128/checkpoint_epoch_0008.pth"
 
 attack:
   pattern_type: 'perturbation'
   fairness_criteria: 'equalized odds'
-  method: 'cross entropy'
+  method: 'perturbed fairness constraint'
   alpha: 0.001      # Step size per attack iteration
   iters: 1         # Number of attack iterations
   base_path: null  # existing pattern's path
@@ -28,17 +28,19 @@ attack:
   epsilon: 0.063        # used if parttern is perturbation
   frame_thickness: 0.05 # used if parttern is frame
 
-  gamma_adjustment: 'constant'
-  gamma: 0.001           # Initial value for gamma, balancing fairness and accuracy
-  # gamma_adjust_factor: 0.0  # Factor for adjusting gamma based on gradient magnitudes
+  gamma_adjustment: 'dynamic' # Method to adjust gamma, can be 'dynamic' or 'constant'
+  gamma: 0.1                  # Initial value for gamma, balancing fairness and accuracy
+  gamma_adjust_factor: 0.05   # Factor to adjust gamma, increases by (1+factor) or decreases by (1-factor)
+  accuracy_goal: 0.80
 
+# Provides dataset information to correctly load the appropriate dataloader
 dataset:
-  training_schema: 'pattern'
-  name: 'celeba'
-  type: 'binary' # 'binary' or 'multi-class'
+  task_name: 'Attractive'    # This string is displayed while printing the performance to the console.
+  training_schema: 'pattern' # Defines how the dataset is loaded
+  name: 'celeba'  # Name of the dataset
+  type: 'binary'  # 'binary' or 'multi-class'; determines which fairness metrics are available
   balanced: true # to use balanced or original dataset
   selected_attrs:
     - Attractive
   protected_attr: 'Male'
-  task_name: 'Attractive'
-  num_subgroups: 2
+  num_outputs: 1

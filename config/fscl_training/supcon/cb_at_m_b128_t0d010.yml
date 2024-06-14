@@ -1,34 +1,31 @@
 training:
   # Basic training parameters
   batch_size: 128
-  final_epoch: 30
+  final_epoch: 150
   learning_rate: 0.001
   random_seed: 2665
-  scheduler: null
+  scheduler: 'CosineAnnealingLR'
 
   # GPU configuration
   use_cuda: true
   gpu_setting: "0" # A string that is passed as an environment variable
 
-  # Warning, these settings are for student model
   # Optional: Path for loading pre-trained model weights
   # load_path:
   # load_stats:
   # Path for saving model and performance data
-  save_path: "/tmp2/pfe/mfd/cb_at_m_b128"
+  save_path: "/tmp2/pfe/fscl/supcon/cb_at_m_b128_t0d010"
 
-mfd:
-  # path to the teacher model, assume it has the same structure as the students
-  teacher_path: "/tmp2/pfe/model/cb_at_m_b128/checkpoint_epoch_0008.pth"
-  lamda: 1.5
+fscl:
+  temperature: 0.01
 
 # Provides dataset information to correctly load the appropriate dataloader
 dataset:
-  task_name: 'Attractive' # This string is displayed while printing the performance to the console.
-  training_schema: 'mfd'  # Defines how the dataset is loaded
-  name: 'celeba' # name of the dataset
+  task_name: 'Attractive'    # This string is displayed while printing the performance to the console.
+  training_schema: 'fscl supcon' # Defines how the dataset is loaded
+  name: 'celeba' # Name of the dataset
   type: 'binary' # 'binary' or 'multi-class'; determines which fairness metrics are available
-  balanced: true # to use balanced or original dataset
+  balanced: true
   selected_attrs:
     - Attractive
   protected_attr: 'Male'

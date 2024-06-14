@@ -1,13 +1,13 @@
 analysis:
-  stats_file_path: /tmp2/pfe/test/cb_at_m_ce_no_shuffle_1/stats_end_0005.pt
+  stats_file_path: /tmp2/pfe/fscl/cb_at_m_cf/b064_t0d03_ep150/stats_end_0020.pt
   type: 'binary' # 'binary' or 'multi-class'; determines which fairness metrics are available
   task_name: 'Attractive' # name print to the console, no checking is involved
 
   initial_status:
-    group1_accuracy: 0.8174
-    group2_accuracy: 0.8398
-    total_accuracy:  0.8261
-    equalized_odds:  0.4617
+    group1_accuracy: 0.8164
+    group2_accuracy: 0.8399
+    total_accuracy:  0.8255
+    equalized_odds:  0.4464
 
 # /tmp2/pfe/pert/direct/celeba_attractive_male/stats_end_0010.pt
 # /tmp2/pfe/pert/direct/celeba_attractive_male/stats_end_0001.pt

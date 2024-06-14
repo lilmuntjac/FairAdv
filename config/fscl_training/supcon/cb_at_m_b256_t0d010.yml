@@ -1,10 +1,10 @@
 training:
   # Basic training parameters
-  batch_size: 64
-  final_epoch: 30
+  batch_size: 256
+  final_epoch: 150
   learning_rate: 0.001
   random_seed: 2665
-  scheduler: null
+  scheduler: 'CosineAnnealingLR'
 
   # GPU configuration
   use_cuda: true
@@ -14,16 +14,19 @@ training:
   # load_path:
   # load_stats:
   # Path for saving model and performance data
-  save_path: "/tmp2/pfe/model/cb_at_m_b64"
+  save_path: "/tmp2/pfe/fscl/supcon/cb_at_m_b256_t0d010"
+
+fscl:
+  temperature: 0.01
 
 # Provides dataset information to correctly load the appropriate dataloader
 dataset:
-  training_schema: 'generic' # Defines how the dataset is loaded
+  task_name: 'Attractive'    # This string is displayed while printing the performance to the console.
+  training_schema: 'fscl supcon' # Defines how the dataset is loaded
   name: 'celeba' # Name of the dataset
   type: 'binary' # 'binary' or 'multi-class'; determines which fairness metrics are available
-  balanced: false
+  balanced: true
   selected_attrs:
     - Attractive
   protected_attr: 'Male'
-  task_name: 'Attractive'
-  num_subgroups: 2
+  num_outputs: 1
