@@ -98,8 +98,10 @@ class FSCLSupConLoss(nn.Module):
         mask = (labels_i == labels_j).float()
         return mask
 
-    def forward(self, features, labels):
+    def _forward(self, features, labels):
         """
+        The method for stabilizing this value 
+        cannot accommodate situations where the denominator has too few terms.
         Args:
             features (Tensor): The features for all images (including 2 versions) coming from the model, 
                                should be in shape (2N, D), where N is the original batch size 
@@ -131,6 +133,41 @@ class FSCLSupConLoss(nn.Module):
         log_softmax_scores = F.log_softmax(dot_contrast, dim=-1)
         scaled_temperature = self.temperature / self.base_temperature
         loss = - scaled_temperature * torch.sum(positive_pair_prob * log_softmax_scores, dim=-1).mean()
+        return loss
+    
+    def forward(self, features, labels):
+        """
+        Args:
+            features (Tensor): The features for all images (including 2 versions) coming from the model, 
+                               should be in shape (2N, D), where N is the original batch size 
+                               and D is the feature length.
+            labels (Tensor): The labels for the images from the original batch, in shape (N, 2), 
+                             where the first element is the targeted attribute 
+                             and the second is the protected attribute.
+        """
+        protected_attribute = labels[:, -1].unsqueeze(1) # in shape (N, 1)
+        actual_labels       = labels[:, :-1]             # in shape (N, 1)
+        protected_mask = self.create_label_mask(protected_attribute).repeat(2, 2) # in shape (2N, 2N)
+        # positive pairs but not pairs from the exactly same image
+        labels_mask    = self.create_label_mask(actual_labels).repeat(2, 2)       # in shape (2N, 2N)
+        labels_mask    = labels_mask.fill_diagonal_(0)
+
+        # Compute contrastive loss
+        features = F.normalize(features, dim=-1)
+        dot_contrast = torch.matmul(features, features.T) / self.temperature
+        dot_max = torch.max(dot_contrast, dim=1, keepdim=True).values
+        dot_contrast -= dot_max
+
+        fair_mask = (1 - labels_mask).fill_diagonal_(0) * protected_mask
+        exp_contrast_sum = torch.sum(torch.exp(dot_contrast) * fair_mask, dim=1, keepdim=True)
+        exp_contrast_sum = exp_contrast_sum.clamp(min=1e-9)
+
+        log_prob = dot_contrast - torch.log(exp_contrast_sum)
+
+        labels_mask_sum = labels_mask.sum(dim=1).clamp(min=1.0)
+        mean_pos_log_prob = (labels_mask * log_prob).sum(dim=1) / labels_mask_sum
+        scaled_temperature = self.temperature / self.base_temperature
+        loss = - scaled_temperature * mean_pos_log_prob.mean()
         return loss
 
 class FSCLClassifierTrainer:
