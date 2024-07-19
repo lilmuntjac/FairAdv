@@ -71,7 +71,7 @@ class EyeglassesApplier:
             alpha (float): Step size for the eyeglasses update.
         """
         with torch.no_grad():
-            self.eyeglasses += alpha * self.eyeglasses.grad.sign()
+            self.eyeglasses -= alpha * self.eyeglasses.grad.sign()
             self.eyeglasses.clamp_(0, 1)
             self.eyeglasses.grad.zero_()
 

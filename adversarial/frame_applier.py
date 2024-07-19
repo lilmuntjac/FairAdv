@@ -59,7 +59,7 @@ class FrameApplier:
             alpha (float): Step size for the frame update.
         """
         with torch.no_grad():
-            self.frame += alpha * self.frame.grad.sign()
+            self.frame -= alpha * self.frame.grad.sign()
             self.frame.clamp_(0, 1)
             self.frame.grad.zero_()
 
