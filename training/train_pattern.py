@@ -179,7 +179,10 @@ class FairPatternTrainer:
             outputs = self.model(processed_images)
             loss = self.loss(outputs, labels, self.applier)
             loss.backward()
-            self.applier.update(self.attack_params['alpha'], self.attack_params['epsilon'])
+            if self.attack_params['pattern_type'] == 'perturbation':
+                self.applier.update(self.attack_params['alpha'], self.attack_params['epsilon'])
+            elif self.attack_params['pattern_type'] in ['frame', 'eyeglasses']:
+                self.applier.update(self.attack_params['alpha'])
             stats = self.compute_stats(outputs, labels)
             # update the total loss and total stats for this epoch
             total_loss += loss.item()
