@@ -8,7 +8,7 @@ from data.loaders.dataloader import (create_celeba_data_loaders, create_celeba_x
                                      create_fairface_data_loaders, create_fairface_xform_data_loaders,
                                      create_ham10000_data_loaders)
 from training import (GenericTrainer, MFDTrainer, FairPatternTrainer, 
-                      FSCLSupConTrainer, FSCLClassifierTrainer)
+                      FSCLSupConTrainer, FSCLClassifierTrainer, ReWeightTrainer, FHSICTrainer)
 
 def setup_training_components(config, device):
     """
@@ -19,7 +19,7 @@ def setup_training_components(config, device):
     """
     # Model
     training_schema = config['dataset'].get('training_schema', '')
-    if training_schema in ['generic', 'pattern', 'mfd', 'fscl classifier']:
+    if training_schema in ['generic', 'pattern', 'mfd', 'fscl classifier', 'reweight', 'fhsic']:
         model = GenericModel(num_outputs=config['dataset']['num_outputs']).to(device)
     elif training_schema in ['fscl supcon',]:
         model = GenericModel(num_outputs=config['dataset']['num_outputs'],
@@ -158,6 +158,7 @@ def select_data_loader(config):
     selected_attrs = config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']]
     batch_size = config['training']['batch_size']
     sampler = 'balanced_batch_sampler' if balanced else None # BalancedBatchSampler
+    sampler = 'seeded_sampler' if config['dataset'].get('training_schema', None) == 'reweight' else None 
     return_two_versions = True if config['dataset'].get('training_schema', None) == 'fscl supcon' else False
 
     # Configure the dataloader based on the training method. 
@@ -183,5 +184,9 @@ def select_trainer(config):
         return FSCLSupConTrainer
     elif training_schema == 'fscl classifier':
         return FSCLClassifierTrainer
+    elif training_schema == 'reweight':
+        return ReWeightTrainer
+    elif training_schema == 'fhsic':
+        return FHSICTrainer
     else:
         raise ValueError(f"Invalid trainer method specified in config: {training_schema}")

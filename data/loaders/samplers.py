@@ -74,3 +74,18 @@ class BalancedBatchSampler(Sampler):
 
     def __len__(self):
         return len(self.batches)
+
+class SeededSampler(Sampler):
+    def __init__(self, data_source, seed):
+        self.data_source = data_source
+        self.seed = seed
+
+    def __iter__(self):
+        n = len(self.data_source)
+        g = torch.Generator()
+        g.manual_seed(self.seed)
+        indices = torch.randperm(n, generator=g).tolist()
+        return iter(indices)
+
+    def __len__(self):
+        return len(self.data_source)

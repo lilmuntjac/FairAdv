@@ -2,6 +2,7 @@ import time
 from pathlib import Path
 
 import torch
+import kornia
 
 from utils.metrics_utils import (
     normalize, get_confusion_matrix_counts, get_rights_and_wrongs_counts, 
@@ -42,6 +43,9 @@ class FairPatternTrainer:
         }
         self.load_pretrained_weight(config)
         self.get_training_loss(config)
+        if config['attack']['pattern_type'] == 'eyeglasses':
+            trivial_augment = kornia.augmentation.auto.TrivialAugment()
+            self.aug_in_grad = kornia.augmentation.AugmentationSequential(trivial_augment)
 
     def select_applier(self, config, pattern=None, device='cpu'):
         """
@@ -175,6 +179,8 @@ class FairPatternTrainer:
         total_loss, total_stats = 0, None
         for batch_idx, batch in enumerate(self.train_loader):
             processed_images, labels = self.embed_pattern(batch)
+            if self.attack_params['pattern_type'] == 'eyeglasses':
+                processed_images = self.aug_in_grad(processed_images)
             processed_images = normalize(processed_images)
             outputs = self.model(processed_images)
             loss = self.loss(outputs, labels, self.applier)

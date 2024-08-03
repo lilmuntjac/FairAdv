@@ -7,7 +7,7 @@ from data.datasets.celeba_xform_dataset import CelebAXformDataset
 from data.datasets.fairface_dataset import FairFaceDataset
 from data.datasets.fairface_xform_dataset import FairFaceXformDataset
 from data.datasets.ham10000_dataset import HAM10000Dataset
-from .samplers import BalancedBatchSampler
+from .samplers import BalancedBatchSampler, SeededSampler
 
 def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):
     """ Get the standard transformations for image data. """
@@ -66,12 +66,17 @@ def create_celeba_data_loaders(
         train_loader = DataLoader(
             train_dataset, batch_sampler=bbs, num_workers=16, pin_memory=True
         )
+    elif sampler == 'seeded_sampler':
+        s = SeededSampler(data_source=train_dataset, seed=0)
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, sampler=s,
+            num_workers=16, pin_memory=True, drop_last=True
+    )
     else:
         train_loader = DataLoader(
             train_dataset, batch_size=batch_size, shuffle=True,
             num_workers=16, pin_memory=True, drop_last=True
         )
-
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
         num_workers=16, pin_memory=True, drop_last=False
@@ -94,9 +99,12 @@ def create_celeba_xform_data_loaders(
 ):
     """ Create and return DataLoaders specifically for the CelebA dataset. """
     return_subgroups = False
+    if sampler:
+        print(f"  Detected the use of a sampler, this may require additional time")
+        start_time = time.perf_counter()
     if sampler in ['balanced_batch_sampler', ]:
         return_subgroups = True
-    train_transform = get_transforms(augment=True)
+    train_transform = get_transforms()
     val_transform = get_transforms()
 
     train_dataset = CelebAXformDataset(
@@ -130,6 +138,11 @@ def create_celeba_xform_data_loaders(
         val_dataset, batch_size=batch_size, shuffle=False,
         num_workers=16, pin_memory=True, drop_last=False
     )
+    if sampler: # Print the time passed when using a sampler
+        total_time = time.perf_counter() - start_time
+        msg = (f"  Time to create Dataloader with custom sampler: {total_time:.2f} seconds "
+               f"({total_time / 60:.2f} minutes)")
+        print(msg)
     return train_loader, val_loader
 
 def create_fairface_data_loaders(
