@@ -35,7 +35,7 @@ class ReWeightTrainer:
         self.multipliers = torch.zeros(2 * num_protected_attributes, device=self.device)
     
 
-    def run(self, _, _, total_train_stats, total_val_stats):
+    def run(self, start_epoch, final_epoch, total_train_stats, total_val_stats):
         # This trainer has iterations outside the epoch and only saves per iteration. 
         # Be careful not to confuse it with other trainers.
         # The start_epoch and final_epoch argument would not work
