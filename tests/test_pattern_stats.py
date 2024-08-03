@@ -131,7 +131,7 @@ class TestPatternStats(unittest.TestCase):
     @staticmethod
     def select_data_loader(config):
         dataset_name = config['dataset']['name']
-        pattern_type = config.get('attack', {}).get('pattern_type', 'perturbation')
+        pattern_type = config['unit_test'].get('pattern_type', 'perturbation')
 
         # Loader function with or without a transformation matrix.
         if pattern_type == 'eyeglasses':
