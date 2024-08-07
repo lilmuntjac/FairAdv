@@ -153,12 +153,16 @@ def select_data_loader(config):
         else:
             raise ValueError(f"Invalid configuration: dataset={dataset_name}, pattern={pattern_type}")
         
-    balanced = config['dataset'].get('balanced', False)
     # Get the loader function parameters
     selected_attrs = config['dataset']['selected_attrs'] + [config['dataset']['protected_attr']]
     batch_size = config['training']['batch_size']
-    sampler = 'balanced_batch_sampler' if balanced else None # BalancedBatchSampler
-    sampler = 'seeded_sampler' if config['dataset'].get('training_schema', None) == 'reweight' else None 
+    # Get the proper sampler
+    if config['dataset'].get('balanced', False):
+        sampler = 'balanced_batch_sampler'
+    elif config['dataset'].get('training_schema', None) == 'reweight':
+        sampler = 'seeded_sampler'
+    else:
+        sampler = None
     return_two_versions = True if config['dataset'].get('training_schema', None) == 'fscl supcon' else False
 
     # Configure the dataloader based on the training method. 
