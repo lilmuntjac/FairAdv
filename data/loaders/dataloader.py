@@ -155,6 +155,13 @@ def create_fairface_data_loaders(
     return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the FairFace dataset. """
+    return_subgroups = False # use in balanced dataset, default = False
+    # Record the time taken when there is a sampler.
+    if sampler:
+        print(f"  Detected the use of a sampler, this may require additional time")
+        start_time = time.perf_counter()
+    if sampler in ['balanced_batch_sampler', ]:
+        return_subgroups = True
     train_transform = get_transforms(augment=True)
     val_transform = get_transforms()
 
@@ -162,7 +169,9 @@ def create_fairface_data_loaders(
         csv_file=train_csv,
         root_dir=root_dir,
         selected_attrs=selected_attrs,
-        transform=train_transform
+        transform=train_transform,
+        return_subgroups=return_subgroups,
+        return_two_versions=return_two_versions
     )
 
     val_dataset = FairFaceDataset(
@@ -172,15 +181,31 @@ def create_fairface_data_loaders(
         transform=val_transform
     )
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=16, pin_memory=True, drop_last=True
+    if sampler == 'balanced_batch_sampler':
+        bbs = BalancedBatchSampler(dataset=train_dataset, batch_size=batch_size)
+        train_loader = DataLoader(
+            train_dataset, batch_sampler=bbs, num_workers=16, pin_memory=True
+        )
+    elif sampler == 'seeded_sampler':
+        s = SeededSampler(data_source=train_dataset, seed=0)
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, sampler=s,
+            num_workers=16, pin_memory=True, drop_last=True
     )
-
+    else:
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            num_workers=16, pin_memory=True, drop_last=True
+        )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
         num_workers=16, pin_memory=True, drop_last=False
     )
+    if sampler: # Print the time passed when using a sampler
+        total_time = time.perf_counter() - start_time
+        msg = (f"  Time to create Dataloader with custom sampler: {total_time:.2f} seconds "
+               f"({total_time / 60:.2f} minutes)")
+        print(msg)
     return train_loader, val_loader
 
 def create_fairface_xform_data_loaders(
@@ -193,6 +218,13 @@ def create_fairface_xform_data_loaders(
     return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the FairFace dataset. """
+    return_subgroups = False # use in balanced dataset, default = False
+    # Record the time taken when there is a sampler.
+    if sampler:
+        print(f"  Detected the use of a sampler, this may require additional time")
+        start_time = time.perf_counter()
+    if sampler in ['balanced_batch_sampler', ]:
+        return_subgroups = True
     train_transform = get_transforms(augment=True)
     val_transform = get_transforms()
 
@@ -200,7 +232,9 @@ def create_fairface_xform_data_loaders(
         csv_file=train_csv,
         root_dir=root_dir,
         selected_attrs=selected_attrs,
-        transform=train_transform
+        transform=train_transform,
+        return_subgroups=return_subgroups,
+        return_two_versions=return_two_versions
     )
 
     val_dataset = FairFaceXformDataset(
@@ -210,15 +244,25 @@ def create_fairface_xform_data_loaders(
         transform=val_transform
     )
 
-    train_loader = DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True,
-        num_workers=16, pin_memory=True, drop_last=True
-    )
-
+    if sampler == 'balanced_batch_sampler':
+        bbs = BalancedBatchSampler(dataset=train_dataset, batch_size=batch_size)
+        train_loader = DataLoader(
+            train_dataset, batch_sampler=bbs, num_workers=16, pin_memory=True
+        )
+    else:
+        train_loader = DataLoader(
+            train_dataset, batch_size=batch_size, shuffle=True,
+            num_workers=16, pin_memory=True, drop_last=True
+        )
     val_loader = DataLoader(
         val_dataset, batch_size=batch_size, shuffle=False,
         num_workers=16, pin_memory=True, drop_last=False
     )
+    if sampler: # Print the time passed when using a sampler
+        total_time = time.perf_counter() - start_time
+        msg = (f"  Time to create Dataloader with custom sampler: {total_time:.2f} seconds "
+               f"({total_time / 60:.2f} minutes)")
+        print(msg)
     return train_loader, val_loader
 
 def create_ham10000_data_loaders(

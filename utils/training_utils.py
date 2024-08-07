@@ -32,17 +32,28 @@ def setup_training_components(config, device):
     if training_schema in ['fscl supcon', 'fscl classifier']:
         optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate,
                                     momentum=0.9, weight_decay=1e-4)
+    elif training_schema in ['reweight',]:
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate,
+                                     weight_decay=1e-5)
     else:
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     # Criterion
     criterion_type = config['dataset'].get('type', 'binary')
-    if criterion_type == 'binary':
-        criterion = torch.nn.BCEWithLogitsLoss()
-    elif criterion_type == 'multi-class':
-        criterion = torch.nn.CrossEntropyLoss()
+    if training_schema == 'reweight':
+        if criterion_type == 'binary':
+            criterion = torch.nn.BCEWithLogitsLoss(reduction='none')
+        elif criterion_type == 'multi-class':
+            criterion = torch.nn.CrossEntropyLoss(reduction='none')
+        else:
+            raise ValueError(f"Unsupported criterion type: {criterion_type}")
     else:
-        raise ValueError(f"Unsupported criterion type: {criterion_type}")
+        if criterion_type == 'binary':
+            criterion = torch.nn.BCEWithLogitsLoss()
+        elif criterion_type == 'multi-class':
+            criterion = torch.nn.CrossEntropyLoss()
+        else:
+            raise ValueError(f"Unsupported criterion type: {criterion_type}")
 
     # Scheduler
     if 'scheduler' in config['training'] and config['training']['scheduler']:
