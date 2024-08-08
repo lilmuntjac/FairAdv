@@ -32,7 +32,9 @@ class ReWeightTrainer:
             num_protected_attributes = len(protected_attr)
         else:
             raise ValueError("The 'protected_attr' should be either a string or a list.")
-        self.multipliers = torch.zeros(2 * num_protected_attributes, device=self.device)
+        num_target_attributes = config['dataset'].get('num_outputs', 1)
+        self.multipliers = torch.zeros((2 * num_protected_attributes, 2 * num_target_attributes), 
+                                       device=self.device)
         self.weights = self.initialize_weights(config)  # Initialize weights as None
 
     def initialize_weights(self, config):
@@ -43,44 +45,56 @@ class ReWeightTrainer:
     
     # Only support binary prodictions !!
     def debias_weights(self, labels):
-        protected = labels[:, -1] # in shape (N,) N here is the entire dataset
+        protected = labels[:, -1]  # in shape (N,) N here is the entire dataset
         original_labels = labels[:, :-1].squeeze(1)  # in shape (N,)
 
-        exponents_pos = torch.zeros(len(original_labels), device=self.device)
-        exponents_neg = torch.zeros(len(original_labels), device=self.device)
-        exponents_pos -= self.multipliers[0] * protected
-        exponents_neg -= self.multipliers[1] * protected
-        weights_pos = torch.sigmoid(exponents_pos) # Shape: (N,)
-        weights_neg = torch.sigmoid(exponents_neg) # Shape: (N,)
+        exponents = torch.zeros(len(original_labels), device=self.device)
+        num_groups = self.multipliers.size(0) // 2
+        
+        for i in range(num_groups):
+            tpr_exponent = self.multipliers[2 * i, 0]  # TPR violation multiplier for group i
+            fpr_exponent = self.multipliers[2 * i, 1]  # FPR violation multiplier for group i
+    
+            # For positive labels, apply TPR multiplier
+            tpr_mask = (protected == i) & (original_labels == 1)
+            exponents[tpr_mask] -= tpr_exponent
+    
+            # For negative labels, apply FPR multiplier
+            fpr_mask = (protected == i) & (original_labels == 0)
+            exponents[fpr_mask] -= fpr_exponent
 
-        self.weights = torch.where(original_labels > 0, 1 - weights_pos, weights_neg)
+        # Update the weights using the sigmoid of the exponents
+        self.weights = torch.sigmoid(exponents)
 
     def compute_violations(self, predictions, labels):
         protected = labels[:, -1]  # Shape (N,)
         original_labels = labels[:, :-1].squeeze(1)  # Shape (N,)
 
-        violations = torch.zeros_like(self.multipliers, device=self.device)
+        num_groups  = self.multipliers.size(0) // 2
+        num_classes  = self.multipliers.size(1) // 2
+        violations = torch.zeros((num_groups, num_classes), device='cpu')
 
-        num_groups = len(self.multipliers) // 2
+        # Calculate overall TPR and FPR
+        true_positives = ((predictions == 1) & (original_labels == 1)).sum().float()
+        false_positives = ((predictions == 1) & (original_labels == 0)).sum().float()
+        true_negatives = ((predictions == 0) & (original_labels == 0)).sum().float()
+        false_negatives = ((predictions == 0) & (original_labels == 1)).sum().float()
+        overall_tpr = true_positives / (true_positives + false_negatives + 1e-6)
+        overall_fpr = false_positives / (false_positives + true_negatives + 1e-6)
 
-        for i in range(num_groups):
-            # Find indices for the current protected group
-            protected_group = (protected == i)
-            positive_label = (original_labels == 1)
+        for g in range(num_groups):
+            # Calculate TPR and FPR for the protected group
+            group_tp = ((predictions == 1) & (original_labels == 1) & (protected == g)).sum().float()
+            group_fp = ((predictions == 1) & (original_labels != 1) & (protected == g)).sum().float()
+            group_tn = ((predictions == 0) & (original_labels != 1) & (protected == g)).sum().float()
+            group_fn = ((predictions == 0) & (original_labels == 1) & (protected == g)).sum().float()
+            group_tpr = group_tp / (group_tp + group_fn + 1e-6)
+            group_fpr = group_fp / (group_fp + group_tn + 1e-6)
 
-            # Ensure that protected_group and positive_label are the same shape
-            protected_group = protected_group.unsqueeze(1)
-            positive_label = positive_label.unsqueeze(1)
-
-            # Compute violations for positive labels
-            pos_group_preds = predictions[protected_group & positive_label]
-            if pos_group_preds.numel() > 0:
-                violations[2 * i] = (pos_group_preds != 1).float().sum()
-
-            # Compute violations for negative labels
-            neg_group_preds = predictions[protected_group & ~positive_label]
-            if neg_group_preds.numel() > 0:
-                violations[2 * i + 1] = (neg_group_preds != 0).float().sum()
+            # Calculate TPR and FPR violations
+            tpr_violation = group_tpr - overall_tpr # violate if higher than group
+            fpr_violation = -(group_fpr - overall_fpr) # violate if lower than group
+            violations[2 * g, 0], violations[2 * g, 1] = tpr_violation, fpr_violation
 
         return violations
 
@@ -186,9 +200,17 @@ class ReWeightTrainer:
                 else:
                     self.train_epoch()
             # Update weights and multipliers
-            self.debias_weights(all_labels)
             violations = self.compute_violations(all_predictions, all_labels)
+            print(f"Violations: {violations}")
+            print(f"Multipliers before updating: {self.multipliers}")
             self.multipliers += self.eta * violations
+            print(f"Multipliers after updating: {self.multipliers}")
+
+            self.debias_weights(all_labels)
+            print(f"Weight stats: min={self.weights.min().item()}, max={self.weights.max().item()}, mean={self.weights.mean().item()}")
+            print(f"Weight distribution: {torch.histc(self.weights, bins=10, min=0, max=1)}")
+
+
             total_iter_time = time.perf_counter() - iter_start_time
             print(f"Total Time: {total_iter_time:.2f} seconds ({total_iter_time / 60:.2f} minutes)")
             print(f'Train Loss: {train_loss:.4f}, Validation Loss: {val_loss:.4f}')
