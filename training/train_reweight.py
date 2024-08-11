@@ -70,31 +70,47 @@ class ReWeightTrainer:
         protected = labels[:, -1]  # Shape (N,)
         original_labels = labels[:, :-1].squeeze(1)  # Shape (N,)
 
-        num_groups  = self.multipliers.size(0) // 2
-        num_classes  = self.multipliers.size(1) // 2
-        violations = torch.zeros((num_groups, num_classes), device='cpu')
+        num_groups  = self.multipliers.size(0)
+        violations = torch.zeros_like(self.multipliers, device=self.device)
 
         # Calculate overall TPR and FPR
-        true_positives = ((predictions == 1) & (original_labels == 1)).sum().float()
-        false_positives = ((predictions == 1) & (original_labels == 0)).sum().float()
-        true_negatives = ((predictions == 0) & (original_labels == 0)).sum().float()
-        false_negatives = ((predictions == 0) & (original_labels == 1)).sum().float()
-        overall_tpr = true_positives / (true_positives + false_negatives + 1e-6)
-        overall_fpr = false_positives / (false_positives + true_negatives + 1e-6)
+        overall_tp, overall_fp = 0, 0
+        overall_tn, overall_fn = 0, 0
+
+        for i in range(len(predictions)):
+            if predictions[i] == 1 and original_labels[i] == 1:
+                overall_tp += 1
+            if predictions[i] == 1 and original_labels[i] == 0:
+                overall_fp += 1
+            if predictions[i] == 0 and original_labels[i] == 0:
+                overall_tn += 1
+            if predictions[i] == 0 and original_labels[i] == 1:
+                overall_fn += 1
+        overall_tpr = overall_tp / (overall_tp + overall_fn + 1e-6)
+        overall_fpr = overall_fp / (overall_fp + overall_tn + 1e-6)
 
         for g in range(num_groups):
+            group_tp, group_fp = 0, 0
+            group_tn, group_fn = 0, 0
             # Calculate TPR and FPR for the protected group
-            group_tp = ((predictions == 1) & (original_labels == 1) & (protected == g)).sum().float()
-            group_fp = ((predictions == 1) & (original_labels != 1) & (protected == g)).sum().float()
-            group_tn = ((predictions == 0) & (original_labels != 1) & (protected == g)).sum().float()
-            group_fn = ((predictions == 0) & (original_labels == 1) & (protected == g)).sum().float()
+            for i in range(len(predictions)):
+                if protected[i] == g:
+                    if predictions[i] == 1 and original_labels[i] == 1:
+                        group_tp += 1
+                    if predictions[i] == 1 and original_labels[i] == 0:
+                        group_fp += 1
+                    if predictions[i] == 0 and original_labels[i] == 0:
+                        group_tn += 1
+                    if predictions[i] == 0 and original_labels[i] == 1:
+                        group_fn += 1
             group_tpr = group_tp / (group_tp + group_fn + 1e-6)
             group_fpr = group_fp / (group_fp + group_tn + 1e-6)
 
             # Calculate TPR and FPR violations
             tpr_violation = group_tpr - overall_tpr # violate if higher than group
             fpr_violation = -(group_fpr - overall_fpr) # violate if lower than group
-            violations[2 * g, 0], violations[2 * g, 1] = tpr_violation, fpr_violation
+            violations[g, 0] = tpr_violation
+            violations[g, 1] = fpr_violation
 
         return violations
 
@@ -150,7 +166,11 @@ class ReWeightTrainer:
             self.optimizer.step()
 
             if last:
-                all_predictions.append(outputs.detach())
+                # The binary model does not include a sigmoid function in the output. 
+                # Remember to pass the output through the sigmoid function first, 
+                # then obtain the predictions from it.
+                predicted = (torch.sigmoid(outputs) > 0.5).int()
+                all_predictions.append(predicted.detach())
                 all_labels.append(labels.detach())
                 stats = self.compute_stats(outputs, labels)
                 # update the total loss and total stats for this epoch
