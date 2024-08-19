@@ -79,7 +79,7 @@ class FairFaceXformDataset(Dataset):
             tuple: (image, theta, target) where theta is the affine transformation matrix and
                    target is a tensor of selected attributes.
         """
-        img_name = self.attributes.iloc[index]['file']
+        img_name = self.data.iloc[index]['file']
         img_path = self.root_dir / img_name
         image = Image.open(img_path).convert('RGB')
 
@@ -97,11 +97,11 @@ class FairFaceXformDataset(Dataset):
         target = []
         for attr in self.selected_attrs:
             if attr == 'race':
-                target.append(self.race_dict.get(self.attributes.iloc[index][attr], -1))
+                target.append(self.race_dict.get(self.data.iloc[index][attr], -1))
             elif attr == 'gender':
-                target.append(self.gender_dict.get(self.attributes.iloc[index][attr], -1))
+                target.append(self.gender_dict.get(self.data.iloc[index][attr], -1))
             elif attr == 'age':
-                target.append(self.age_dict.get(self.attributes.iloc[index][attr], -1))
+                target.append(self.age_dict.get(self.data.iloc[index][attr], -1))
         target = np.array(target, dtype=np.float32)
 
         if self.return_subgroups:
