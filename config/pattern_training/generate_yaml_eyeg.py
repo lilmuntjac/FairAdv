@@ -49,7 +49,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.82,
         # 'accuracy_goals_stage_2': [0.86, 0.84, 0.82, 0.80, 0.78],
         'accuracy_goals_stage_2': [0.76, 0.74, 0.72, 0.70, 0.68],
-        'gpu_setting': '6'
+        'gpu_setting': '2'
     },
     'Big_Nose': {
         'short_name': 'cb_bn',
@@ -57,7 +57,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.84,
         # 'accuracy_goals_stage_2': [0.88, 0.86, 0.84, 0.82, 0.80],
         'accuracy_goals_stage_2': [0.78, 0.76, 0.74, 0.72, 0.70],
-        'gpu_setting': '6'
+        'gpu_setting': '2'
     },
     'Bags_Under_Eyes': {
         'short_name': 'cb_bu',
@@ -65,7 +65,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.86,
         # 'accuracy_goals_stage_2': [0.88, 0.86, 0.84, 0.82, 0.80],
         'accuracy_goals_stage_2': [0.78, 0.76, 0.74, 0.72, 0.70],
-        'gpu_setting': '6'
+        'gpu_setting': '2'
     },
     'High_Cheekbones': {
         'short_name': 'cb_hc',
@@ -73,7 +73,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.88,
         # 'accuracy_goals_stage_2': [0.92, 0.90, 0.88, 0.86, 0.84],
         'accuracy_goals_stage_2': [0.82, 0.80, 0.78, 0.76, 0.74],
-        'gpu_setting': '7'
+        'gpu_setting': '3'
     },
     'Oval_Face': {
         'short_name': 'cb_of',
@@ -81,7 +81,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.76,
         # 'accuracy_goals_stage_2': [0.80, 0.78, 0.76, 0.74, 0.72],
         'accuracy_goals_stage_2': [0.70, 0.68, 0.66, 0.64, 0.62],
-        'gpu_setting': '7'
+        'gpu_setting': '3'
     },
     'Young': {
         'short_name': 'cb_yo',
@@ -89,7 +89,7 @@ attributes_info = {
         'initial_accuracy_goal': 0.88,
         # 'accuracy_goals_stage_2': [0.92, 0.90, 0.88, 0.86, 0.84],
         'accuracy_goals_stage_2': [0.82, 0.80, 0.78, 0.76, 0.74],
-        'gpu_setting': '7'
+        'gpu_setting': '3'
     }
 }
 
@@ -213,26 +213,30 @@ def generate_configs_stage_2(gamma_results):
     print(f"Generated {config_counter} configuration files for Stage 2.")
 
 accuracy_results_stage_2 = {
-    ('Big_Nose', 'fairness constraint'): 0.88,
-    ('Big_Nose', 'perturbed fairness constraint'): 0.86,
-    ('Big_Nose', 'EquiMask fairness constraint'): 0.86,
-    ('Big_Nose', 'EquiMask perturbed fairness constraint'): 0.86,
-    ('Bags_Under_Eyes', 'fairness constraint'): 0.86,
-    ('Bags_Under_Eyes', 'perturbed fairness constraint'): 0.82,
-    ('Bags_Under_Eyes', 'EquiMask fairness constraint'): 0.84,
-    ('Bags_Under_Eyes', 'EquiMask perturbed fairness constraint'): 0.80,
+    ('Attractive', 'fairness constraint'): 0.72,
+    ('Attractive', 'perturbed fairness constraint'): 0.76,
+    ('Attractive', 'EquiMask fairness constraint'): 0.68,
+    ('Attractive', 'EquiMask perturbed fairness constraint'): 0.68,
+    ('Big_Nose', 'fairness constraint'): 0.72,
+    ('Big_Nose', 'perturbed fairness constraint'): 0.76,
+    ('Big_Nose', 'EquiMask fairness constraint'): 0.76,
+    ('Big_Nose', 'EquiMask perturbed fairness constraint'): 0.76,
+    ('Bags_Under_Eyes', 'fairness constraint'): 0.78,
+    ('Bags_Under_Eyes', 'perturbed fairness constraint'): 0.78,
+    ('Bags_Under_Eyes', 'EquiMask fairness constraint'): 0.78,
+    ('Bags_Under_Eyes', 'EquiMask perturbed fairness constraint'): 0.78,
     ('High_Cheekbones', 'fairness constraint'): 0.84,
-    ('High_Cheekbones', 'perturbed fairness constraint'): 0.92,
-    ('High_Cheekbones', 'EquiMask fairness constraint'): 0.84,
-    ('High_Cheekbones', 'EquiMask perturbed fairness constraint'): 0.84,
-    ('Oval_Face', 'fairness constraint'): 0.78,
-    ('Oval_Face', 'perturbed fairness constraint'): 0.80,
-    ('Oval_Face', 'EquiMask fairness constraint'): 0.78,
-    ('Oval_Face', 'EquiMask perturbed fairness constraint'): 0.74,
-    ('Young', 'fairness constraint'): 0.86,
-    ('Young', 'perturbed fairness constraint'): 0.86,
-    ('Young', 'EquiMask fairness constraint'): 0.88,
-    ('Young', 'EquiMask perturbed fairness constraint'): 0.84,
+    ('High_Cheekbones', 'perturbed fairness constraint'): 0.84,
+    ('High_Cheekbones', 'EquiMask fairness constraint'): 0.74,
+    ('High_Cheekbones', 'EquiMask perturbed fairness constraint'): 0.74,
+    ('Oval_Face', 'fairness constraint'): 0.66,
+    ('Oval_Face', 'perturbed fairness constraint'): 0.70,
+    ('Oval_Face', 'EquiMask fairness constraint'): 0.70,
+    ('Oval_Face', 'EquiMask perturbed fairness constraint'): 0.70,
+    ('Young', 'fairness constraint'): 0.78,
+    ('Young', 'perturbed fairness constraint'): 0.76,
+    ('Young', 'EquiMask fairness constraint'): 0.82,
+    ('Young', 'EquiMask perturbed fairness constraint'): 0.76,
 }
 
 # Stage 3: Find the proper Gamma adjustment rate
@@ -275,5 +279,5 @@ def generate_configs_stage_3(gamma_results, accuracy_results):
 
 # Run the configuration generation by stages
 # gamma_results_stage_1 = generate_configs_stage_1()
-accuracy_results_stage_2 = generate_configs_stage_2(gamma_results_stage_1)
-# generate_configs_stage_3(gamma_results_stage_1, accuracy_results_stage_2)
+# accuracy_results_stage_2 = generate_configs_stage_2(gamma_results_stage_1)
+generate_configs_stage_3(gamma_results_stage_1, accuracy_results_stage_2)

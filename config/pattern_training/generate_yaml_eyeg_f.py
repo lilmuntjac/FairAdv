@@ -16,7 +16,7 @@ base_config = {
         'model_path': ''
     },
     'attack': {
-        'pattern_type': 'frame',
+        'pattern_type': 'eyeglasses',
         'fairness_criteria': 'equalized odds',
         'method': '',
         'alpha': 0.001,
@@ -30,66 +30,27 @@ base_config = {
         'accuracy_goal': 0
     },
     'dataset': {
-        'task_name': '',
+        'task_name': 'Age',
         'training_schema': 'pattern',
-        'name': 'celeba',
+        'name': 'fairface',
         'type': 'binary',
         'balanced': True,
-        'selected_attrs': [],
-        'protected_attr': 'Male',
+        'selected_attrs': ['age'],
+        'protected_attr': 'race',
         'num_outputs': 1
     }
 }
 
 # Attributes info with model paths and accuracy goals for different stages
 attributes_info = {
-    'Attractive': {
-        'short_name': 'cb_at',
-        'model_path': '/tmp2/pfe/model/cb_at_m_b128/checkpoint_epoch_0008.pth',
+    'age': {
+        'short_name': 'ff',
+        'model_path': '/tmp2/pfe/model/ff_b128/checkpoint_epoch_0006.pth',
         'initial_accuracy_goal': 0.82,
         # 'accuracy_goals_stage_2': [0.86, 0.84, 0.82, 0.80, 0.78],
-        'accuracy_goals_stage_2': [0.76, 0.74, 0.72, 0.70],
-        'gpu_setting': '0'
-    },
-    'Big_Nose': {
-        'short_name': 'cb_bn',
-        'model_path': '/tmp2/pfe/model/cb_bn_m_b064/checkpoint_epoch_0005.pth',
-        'initial_accuracy_goal': 0.84,
-        # 'accuracy_goals_stage_2': [0.88, 0.86, 0.84, 0.82, 0.80],
-        'accuracy_goals_stage_2': [0.78, 0.76, 0.74, 0.72],
-        'gpu_setting': '0'
-    },
-    'Bags_Under_Eyes': {
-        'short_name': 'cb_bu',
-        'model_path': '/tmp2/pfe/model/cb_bu_m_b064/checkpoint_epoch_0008.pth',
-        'initial_accuracy_goal': 0.86,
-        # 'accuracy_goals_stage_2': [0.88, 0.86, 0.84, 0.82, 0.80],
-        'accuracy_goals_stage_2': [0.78, 0.76, 0.74, 0.72],
-        'gpu_setting': '0'
-    },
-    'High_Cheekbones': {
-        'short_name': 'cb_hc',
-        'model_path': '/tmp2/pfe/model/cb_hc_m_b128/checkpoint_epoch_0006.pth',
-        'initial_accuracy_goal': 0.88,
-        # 'accuracy_goals_stage_2': [0.92, 0.90, 0.88, 0.86, 0.84],
-        'accuracy_goals_stage_2': [0.82, 0.80, 0.78, 0.76],
-        'gpu_setting': '0'
-    },
-    'Oval_Face': {
-        'short_name': 'cb_of',
-        'model_path': '/tmp2/pfe/model/cb_of_m_b128/checkpoint_epoch_0006.pth',
-        'initial_accuracy_goal': 0.76,
-        # 'accuracy_goals_stage_2': [0.80, 0.78, 0.76, 0.74, 0.72],
-        'accuracy_goals_stage_2': [0.70, 0.68, 0.66, 0.64],
-        'gpu_setting': '0'
-    },
-    'Young': {
-        'short_name': 'cb_yo',
-        'model_path': '/tmp2/pfe/model/cb_yo_m_b128/checkpoint_epoch_0003.pth',
-        'initial_accuracy_goal': 0.88,
-        # 'accuracy_goals_stage_2': [0.92, 0.90, 0.88, 0.86, 0.84],
-        'accuracy_goals_stage_2': [0.82, 0.80, 0.78, 0.76],
-        'gpu_setting': '0'
+        # 'accuracy_goals_stage_2': [0.76, 0.74, 0.72, 0.70, 0.68],
+        'accuracy_goals_stage_2': [0.80, 0.78, 0.76, 0.74, 0.72, 0.70, 0.68],
+        'gpu_setting': '1'
     }
 }
 
@@ -133,7 +94,7 @@ def generate_configs_stage_1():
             for gamma in gamma_values_stage_1:
                 formatted_gamma = format_value(gamma)
                 config = base_config.copy()
-                config['training']['save_path'] = f"/tmp2/pfe/pattern/frame/{method_abbr}/{short_name}_g_{formatted_gamma}"
+                config['training']['save_path'] = f"/tmp2/pfe/pattern/eyeg/{method_abbr}/{short_name}_g_{formatted_gamma}"
                 config['training']['gpu_setting'] = gpu_setting
                 config['model']['model_path'] = model_path
                 config['attack']['method'] = attack_method
@@ -144,7 +105,7 @@ def generate_configs_stage_1():
                 config['dataset']['task_name'] = attribute
                 config['dataset']['selected_attrs'] = [attribute]
                 
-                directory = f"frame/{method_abbr}"
+                directory = f"eyeglasses/{method_abbr}"
                 file_name = f"{short_name}_g_{formatted_gamma}.yml"
                 save_config_to_yaml(config, directory, file_name)
                 config_counter += 1
@@ -152,30 +113,10 @@ def generate_configs_stage_1():
     print(f"Generated {config_counter} configuration files for Stage 1.")
 
 gamma_results_stage_1 = {
-    ('Attractive', 'fairness constraint'): 5,
-    ('Attractive', 'perturbed fairness constraint'): 1,
-    ('Attractive', 'EquiMask fairness constraint'): 0.1,
-    ('Attractive', 'EquiMask perturbed fairness constraint'): 0.1,
-    ('Big_Nose', 'fairness constraint'): 5,
-    ('Big_Nose', 'perturbed fairness constraint'): 5,
-    ('Big_Nose', 'EquiMask fairness constraint'): 5,
-    ('Big_Nose', 'EquiMask perturbed fairness constraint'): 10,
-    ('Bags_Under_Eyes', 'fairness constraint'): 10,
-    ('Bags_Under_Eyes', 'perturbed fairness constraint'): 10,
-    ('Bags_Under_Eyes', 'EquiMask fairness constraint'): 5,
-    ('Bags_Under_Eyes', 'EquiMask perturbed fairness constraint'): 1,
-    ('High_Cheekbones', 'fairness constraint'): 5,
-    ('High_Cheekbones', 'perturbed fairness constraint'): 1,
-    ('High_Cheekbones', 'EquiMask fairness constraint'): 1,
-    ('High_Cheekbones', 'EquiMask perturbed fairness constraint'): 1,
-    ('Oval_Face', 'fairness constraint'): 10,
-    ('Oval_Face', 'perturbed fairness constraint'): 10,
-    ('Oval_Face', 'EquiMask fairness constraint'): 1,
-    ('Oval_Face', 'EquiMask perturbed fairness constraint'): 1,
-    ('Young', 'fairness constraint'): 10,
-    ('Young', 'perturbed fairness constraint'): 10,
-    ('Young', 'EquiMask fairness constraint'): 5,
-    ('Young', 'EquiMask perturbed fairness constraint'): 1,
+    ('age', 'fairness constraint'): 5,
+    ('age', 'perturbed fairness constraint'): 1,
+    ('age', 'EquiMask fairness constraint'): 0.1,
+    ('age', 'EquiMask perturbed fairness constraint'): 0.1,
 }
 
 # Stage 2: Find the Accuracy target
@@ -194,7 +135,7 @@ def generate_configs_stage_2(gamma_results):
             for accuracy_goal in accuracy_goals_stage_2:
                 formatted_accuracy_goal = format_value(accuracy_goal)
                 config = base_config.copy()
-                config['training']['save_path'] = f"/tmp2/pfe/pattern/frame/{method_abbr}/{short_name}_at_{formatted_accuracy_goal}"
+                config['training']['save_path'] = f"/tmp2/pfe/pattern/eyeg/{method_abbr}/{short_name}_at_{formatted_accuracy_goal}"
                 config['training']['gpu_setting'] = gpu_setting
                 config['model']['model_path'] = model_path
                 config['attack']['method'] = attack_method
@@ -205,7 +146,7 @@ def generate_configs_stage_2(gamma_results):
                 config['dataset']['task_name'] = attribute
                 config['dataset']['selected_attrs'] = [attribute]
                 
-                directory = f"frame/{method_abbr}"
+                directory = f"eyeglasses/{method_abbr}"
                 file_name = f"{short_name}_at_{formatted_accuracy_goal}.yml"
                 save_config_to_yaml(config, directory, file_name)
                 config_counter += 1
@@ -213,30 +154,10 @@ def generate_configs_stage_2(gamma_results):
     print(f"Generated {config_counter} configuration files for Stage 2.")
 
 accuracy_results_stage_2 = {
-    ('Attractive', 'fairness constraint'): 0.76,
-    ('Attractive', 'perturbed fairness constraint'): 0.78,
-    ('Attractive', 'EquiMask fairness constraint'): 0.76,
-    ('Attractive', 'EquiMask perturbed fairness constraint'): 0.76,
-    ('Big_Nose', 'fairness constraint'): 0.76,
-    ('Big_Nose', 'perturbed fairness constraint'): 0.74,
-    ('Big_Nose', 'EquiMask fairness constraint'): 0.74,
-    ('Big_Nose', 'EquiMask perturbed fairness constraint'): 0.76,
-    ('Bags_Under_Eyes', 'fairness constraint'): 0.76,
-    ('Bags_Under_Eyes', 'perturbed fairness constraint'): 0.78,
-    ('Bags_Under_Eyes', 'EquiMask fairness constraint'): 0.78,
-    ('Bags_Under_Eyes', 'EquiMask perturbed fairness constraint'): 0.78,
-    ('High_Cheekbones', 'fairness constraint'): 0.84,
-    ('High_Cheekbones', 'perturbed fairness constraint'): 0.86,
-    ('High_Cheekbones', 'EquiMask fairness constraint'): 0.84,
-    ('High_Cheekbones', 'EquiMask perturbed fairness constraint'): 0.84,
-    ('Oval_Face', 'fairness constraint'): 0.70,
-    ('Oval_Face', 'perturbed fairness constraint'): 0.70,
-    ('Oval_Face', 'EquiMask fairness constraint'): 0.70,
-    ('Oval_Face', 'EquiMask perturbed fairness constraint'): 0.70,
-    ('Young', 'fairness constraint'): 0.78,
-    ('Young', 'perturbed fairness constraint'): 0.76,
-    ('Young', 'EquiMask fairness constraint'): 0.82,
-    ('Young', 'EquiMask perturbed fairness constraint'): 0.76,
+    ('age', 'fairness constraint'): 0.76,
+    ('age', 'perturbed fairness constraint'): 0.8,
+    ('age', 'EquiMask fairness constraint'): 0.74,
+    ('age', 'EquiMask perturbed fairness constraint'): 0.76,
 }
 
 # Stage 3: Find the proper Gamma adjustment rate
@@ -259,7 +180,7 @@ def generate_configs_stage_3(gamma_results, accuracy_results):
                 formatted_accuracy_goal = format_value(accuracy_goal)
                 formatted_gamma_adjust_factor = format_value(gamma_adjust_factor)
                 config = base_config.copy()
-                config['training']['save_path'] = f"/tmp2/pfe/pattern/frame/{method_abbr}/{short_name}_af_{formatted_gamma_adjust_factor}"
+                config['training']['save_path'] = f"/tmp2/pfe/pattern/eyeg/{method_abbr}/{short_name}_af_{formatted_gamma_adjust_factor}"
                 config['training']['gpu_setting'] = gpu_setting
                 config['model']['model_path'] = model_path
                 config['attack']['method'] = attack_method
@@ -270,7 +191,7 @@ def generate_configs_stage_3(gamma_results, accuracy_results):
                 config['dataset']['task_name'] = attribute
                 config['dataset']['selected_attrs'] = [attribute]
                 
-                directory = f"frame/{method_abbr}"
+                directory = f"eyeglasses/{method_abbr}"
                 file_name = f"{short_name}_af_{formatted_gamma_adjust_factor}.yml"
                 save_config_to_yaml(config, directory, file_name)
                 config_counter += 1
@@ -278,6 +199,6 @@ def generate_configs_stage_3(gamma_results, accuracy_results):
     print(f"Generated {config_counter} configuration files for Stage 3.")
 
 # Run the configuration generation by stages
-# gamma_results_stage_1 = generate_configs_stage_1()
+gamma_results_stage_1 = generate_configs_stage_1()
 # accuracy_results_stage_2 = generate_configs_stage_2(gamma_results_stage_1)
-generate_configs_stage_3(gamma_results_stage_1, accuracy_results_stage_2)
+# generate_configs_stage_3(gamma_results_stage_1, accuracy_results_stage_2)
