@@ -9,13 +9,13 @@ def load_config(config_path):
     with open(config_path, 'r') as file:
         return yaml.safe_load(file)
 
-def config_env(config):
+def config_env(config, title='training'):
     """Configures the device for PyTorch and initializes random seeds for reproducibility."""
     print(f"PyTorch Version: {torch.__version__}")
 
     # Set the CUDA device environment variable based on the configuration.
-    use_cuda = config['training'].get('use_cuda', False)
-    gpu_setting = str(config['training'].get('gpu_setting', '0'))
+    use_cuda = config[title].get('use_cuda', False)
+    gpu_setting = str(config[title].get('gpu_setting', '0'))
     os.environ["CUDA_VISIBLE_DEVICES"] = gpu_setting
 
     # Validate CUDA availability if requested.
@@ -30,7 +30,7 @@ def config_env(config):
         print("Using CPU for computations.")
 
     # Set random seeds to ensure experiments can be reproducible.
-    seed = config['training'].get('random_seed', 2665)
+    seed = config[title].get('random_seed', 2665)
     torch.manual_seed(seed)
     np.random.seed(seed)
     if device == 'cuda':

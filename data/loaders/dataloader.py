@@ -9,16 +9,27 @@ from data.datasets.fairface_xform_dataset import FairFaceXformDataset
 from data.datasets.ham10000_dataset import HAM10000Dataset
 from .samplers import BalancedBatchSampler, SeededSampler
 
-def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=False):
+def get_transforms(input_size=224, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], augment=None):
     """ Get the standard transformations for image data. """
     transforms_list = [
         transforms.Resize((input_size, input_size)),
         transforms.ToTensor(),
         # transforms.Normalize(mean=mean, std=std)
     ]
-    if augment:
+    if augment == "normal":
         # Insert TrivialAugmentWide at the beginning of the transforms list
         transforms_list.insert(0, transforms.TrivialAugmentWide())
+    elif augment == "weak":
+        augmentations = [
+            transforms.RandomHorizontalFlip(),  
+            transforms.RandomResizedCrop(input_size, scale=(0.8, 1.0)), 
+            transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1, hue=0.02)  # Slight color jitter
+        ]
+        transforms_list = augmentations + transforms_list
+    elif augment is None:
+        pass
+    else:
+        raise ValueError(f"Unknown augment method: {augment}. Expected 'normal', 'weak', or None.")
     return transforms.Compose(transforms_list)
     
 def create_celeba_data_loaders(
@@ -38,7 +49,7 @@ def create_celeba_data_loaders(
         start_time = time.perf_counter()
     if sampler in ['balanced_batch_sampler', ]:
         return_subgroups = True
-    train_transform = get_transforms(augment=True)
+    train_transform = get_transforms(augment='normal')
     val_transform = get_transforms()
 
     train_dataset = CelebADataset(
@@ -162,7 +173,7 @@ def create_fairface_data_loaders(
         start_time = time.perf_counter()
     if sampler in ['balanced_batch_sampler', ]:
         return_subgroups = True
-    train_transform = get_transforms(augment=True)
+    train_transform = get_transforms(augment='normal')
     val_transform = get_transforms()
 
     train_dataset = FairFaceDataset(
@@ -225,7 +236,7 @@ def create_fairface_xform_data_loaders(
         start_time = time.perf_counter()
     if sampler in ['balanced_batch_sampler', ]:
         return_subgroups = True
-    train_transform = get_transforms(augment=True)
+    train_transform = get_transforms()
     val_transform = get_transforms()
 
     train_dataset = FairFaceXformDataset(
@@ -275,7 +286,7 @@ def create_ham10000_data_loaders(
         return_two_versions=False
 ):
     """ Create and return DataLoaders specifically for the HAM10000 dataset. """
-    train_transform = get_transforms(augment=True)
+    train_transform = get_transforms(augment='normal')
     val_transform = get_transforms()
 
     train_dataset = HAM10000Dataset(

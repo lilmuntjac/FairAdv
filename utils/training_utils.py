@@ -8,7 +8,7 @@ from data.loaders.dataloader import (create_celeba_data_loaders, create_celeba_x
                                      create_fairface_data_loaders, create_fairface_xform_data_loaders,
                                      create_ham10000_data_loaders)
 from training import (GenericTrainer, MFDTrainer, FairPatternTrainer, 
-                      FSCLSupConTrainer, FSCLClassifierTrainer, ReWeightTrainer, FHSICTrainer)
+                      FSCLSupConTrainer, FSCLClassifierTrainer, ReWeightTrainer, FHSICTrainer, AdvTrainer)
 
 def setup_training_components(config, device):
     """
@@ -19,7 +19,7 @@ def setup_training_components(config, device):
     """
     # Model
     training_schema = config['dataset'].get('training_schema', '')
-    if training_schema in ['generic', 'pattern', 'mfd', 'fscl classifier', 'reweight', 'fhsic']:
+    if training_schema in ['generic', 'pattern', 'mfd', 'fscl classifier', 'reweight', 'fhsic', 'adversarial',]:
         model = GenericModel(num_outputs=config['dataset']['num_outputs']).to(device)
     elif training_schema in ['fscl supcon',]:
         model = GenericModel(num_outputs=config['dataset']['num_outputs'],
@@ -203,5 +203,7 @@ def select_trainer(config):
         return ReWeightTrainer
     elif training_schema == 'fhsic':
         return FHSICTrainer
+    elif training_schema == 'adversarial':
+        return AdvTrainer
     else:
         raise ValueError(f"Invalid trainer method specified in config: {training_schema}")
